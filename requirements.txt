@@ -1,0 +1,38 @@
+# GAM Admin Tool - Python Dependencies
+# This tool is built with Python's standard library, minimal external dependencies
+
+# PyInstaller for building standalone executable
+pyinstaller==6.3.0
+
+# Optional: Pillow for icon conversion (if building on systems without icon support)
+# Pillow>=10.0.0
+
+# ============================================================================
+# STANDARD LIBRARY MODULES (No installation required)
+# ============================================================================
+# tkinter - GUI framework (included with Python)
+# subprocess - GAM command execution
+# csv - CSV file handling
+# datetime - Logging timestamps
+# os - File operations
+# threading - GUI responsiveness
+# queue - Thread communication
+# logging - Error logging
+# tempfile - Temporary file handling for signatures
+# re - Regular expression validation
+# io - String I/O operations
+
+# ============================================================================
+# EXTERNAL REQUIREMENTS
+# ============================================================================
+# GAM7 - Must be installed separately and in system PATH
+# Download from: https://github.com/GAM-team/GAM
+# Installation instructions: https://github.com/GAM-team/GAM/wiki
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# - This application is a GUI wrapper for GAM7
+# - GAM7 must be installed, configured, and authenticated separately
+# - Run 'gam oauth create' to authenticate before using this tool
+# - Python 3.8 or higher required

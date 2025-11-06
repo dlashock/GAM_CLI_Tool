@@ -41,6 +41,6 @@ Thumbs.db
 gam_tool_errors.log
 
 # PyInstaller
-*.spec
+# *.spec - ALLOW build.spec to be committed
 dist/
 build/

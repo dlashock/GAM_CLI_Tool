@@ -1,0 +1,55 @@
+Icon Instructions for GAM Admin Tool
+=====================================
+
+The application can use a custom icon for the Windows executable.
+
+OPTION 1: Use Google Workspace Icon (Recommended)
+--------------------------------------------------
+Download a Google Workspace icon from:
+- https://cdn.jim-nielsen.com/ios/512/google-2015-10-22.png
+- Or search for "Google Workspace icon PNG"
+
+Save as: assets/icon.png
+
+OPTION 2: Use Any Custom Icon
+------------------------------
+Place your icon file (PNG or ICO format) in this directory:
+- PNG: assets/icon.png (512x512 recommended)
+- ICO: assets/icon.ico
+
+OPTION 3: Convert PNG to ICO
+-----------------------------
+If you have a PNG file, convert it to ICO format:
+
+Using online converter:
+- Visit: https://convertio.co/png-ico/
+- Upload your icon.png
+- Download as icon.ico
+
+Using Python Pillow (if installed):
+```python
+from PIL import Image
+img = Image.open('assets/icon.png')
+img.save('assets/icon.ico', format='ICO', sizes=[(256,256)])
+```
+
+Using ImageMagick (command line):
+```bash
+convert assets/icon.png -define icon:auto-resize=256,128,64,48,32,16 assets/icon.ico
+```
+
+OPTION 4: Build Without Icon
+-----------------------------
+If no icon is provided, the executable will use the default Python icon.
+The application will work perfectly fine without a custom icon.
+
+To build without icon, modify build.spec and remove:
+- icon='assets/icon.ico' line
+- ('assets/icon.ico', 'assets') from datas
+
+NOTES
+-----
+- ICO format is required for Windows executables
+- Recommended sizes: 16x16, 32x32, 48x48, 256x256
+- PNG files work during development but must be converted to ICO for distribution
+- Icon is optional and does not affect functionality
