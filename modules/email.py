@@ -11,6 +11,18 @@ import tempfile
 import os
 import shlex
 from utils.logger import log_error
+from utils.gam_check import get_gam_path
+
+
+def _get_gam_command():
+    """
+    Get the GAM command to use (handles PATH and non-PATH installations).
+
+    Returns:
+        str or list: GAM command ('gam' or full path)
+    """
+    gam_path = get_gam_path()
+    return gam_path if gam_path else 'gam'
 
 
 def delete_messages(users, query, date_from=None, date_to=None):
@@ -53,7 +65,7 @@ def delete_messages(users, query, date_from=None, date_to=None):
         try:
             # Build GAM command
             cmd = [
-                'gam', 'user', user_email,
+                _get_gam_command(), 'user', user_email,
                 'delete', 'messages',
                 'query', full_query,
                 'trash', 'excludetrash'
@@ -142,7 +154,7 @@ def add_delegate(users, delegate_email):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'delegate', 'to', delegate_email]
+            cmd = [_get_gam_command(), 'user', user_email, 'delegate', 'to', delegate_email]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -210,7 +222,7 @@ def remove_delegate(users, delegate_email):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'delegate', 'delete', delegate_email]
+            cmd = [_get_gam_command(), 'user', user_email, 'delegate', 'delete', delegate_email]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -285,7 +297,7 @@ def set_signature(users, signature_html):
             }
 
             try:
-                cmd = ['gam', 'user', user_email, 'signature', 'file', temp_path]
+                cmd = [_get_gam_command(), 'user', user_email, 'signature', 'file', temp_path]
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
                 if result.returncode == 0:
@@ -357,7 +369,7 @@ def remove_signature(users):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'signature', '']
+            cmd = [_get_gam_command(), 'user', user_email, 'signature', '']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -425,7 +437,7 @@ def enable_forwarding(users, forward_to):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'forward', 'on', forward_to]
+            cmd = [_get_gam_command(), 'user', user_email, 'forward', 'on', forward_to]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -492,7 +504,7 @@ def disable_forwarding(users):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'forward', 'off']
+            cmd = [_get_gam_command(), 'user', user_email, 'forward', 'off']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -560,7 +572,7 @@ def create_label(users, label_name):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'label', label_name]
+            cmd = [_get_gam_command(), 'user', user_email, 'label', label_name]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -628,7 +640,7 @@ def delete_label(users, label_name):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'delete', 'label', label_name]
+            cmd = [_get_gam_command(), 'user', user_email, 'delete', 'label', label_name]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -783,7 +795,7 @@ def delete_filter(users, filter_id):
         }
 
         try:
-            cmd = ['gam', 'user', user_email, 'delete', 'filter', filter_id]
+            cmd = [_get_gam_command(), 'user', user_email, 'delete', 'filter', filter_id]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -835,7 +847,7 @@ def list_filters(user_email):
         list: List of tuples (filter_id, description) or empty list on error
     """
     try:
-        cmd = ['gam', 'user', user_email, 'show', 'filters']
+        cmd = [_get_gam_command(), 'user', user_email, 'show', 'filters']
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
         if result.returncode != 0:
