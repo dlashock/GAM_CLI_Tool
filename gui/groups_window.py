@@ -869,7 +869,7 @@ class GroupsWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Add or remove group aliases. Use CSV for bulk operations.",
+            text="Add or remove group aliases. Choose single entry for individual operations or CSV for bulk operations.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
@@ -893,14 +893,57 @@ class GroupsWindow(BaseOperationWindow):
             value="remove"
         ).pack(side=tk.LEFT)
 
-        # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        # Mode selection
+        mode_frame = ttk.LabelFrame(tab, text="Input Mode", padding="10")
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(csv_frame, text="For Add: group,alias").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="For Remove: Just list aliases (header: alias)").pack(anchor=tk.W, pady=(5, 10))
+        self.group_aliases_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single Entry",
+            variable=self.group_aliases_mode,
+            value="single",
+            command=self.toggle_group_aliases_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.group_aliases_mode,
+            value="csv",
+            command=self.toggle_group_aliases_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific frames
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single entry frame
+        self.group_aliases_single_frame = ttk.LabelFrame(mode_container, text="Alias Details", padding="10")
+
+        # Group selection with dropdown (for add action)
+        group_frame = ttk.Frame(self.group_aliases_single_frame)
+        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+
+        ttk.Label(group_frame, text="Group (for Add):").pack(side=tk.LEFT, padx=(0, 5))
+        self.group_aliases_group_combo = ttk.Combobox(group_frame, width=40, state='readonly')
+        self.group_aliases_group_combo.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_aliases).pack(side=tk.LEFT)
+
+        # Alias entry
+        ttk.Label(self.group_aliases_single_frame, text="Alias:").grid(row=1, column=0, sticky=tk.W)
+        self.group_aliases_alias = ttk.Entry(self.group_aliases_single_frame, width=50)
+        self.group_aliases_alias.grid(row=1, column=1, sticky=(tk.W, tk.E))
+
+        self.group_aliases_single_frame.grid_columnconfigure(1, weight=1)
+
+        # CSV frame
+        self.group_aliases_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
+
+        ttk.Label(self.group_aliases_csv_frame, text="For Add: group,alias").pack(anchor=tk.W)
+        ttk.Label(self.group_aliases_csv_frame, text="For Remove: Just list aliases (header: alias)").pack(anchor=tk.W, pady=(5, 10))
+
+        csv_input_frame = ttk.Frame(self.group_aliases_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.group_aliases_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -911,6 +954,9 @@ class GroupsWindow(BaseOperationWindow):
             text="Browse",
             command=lambda: self.browse_csv_file(self.group_aliases_csv_entry)
         ).pack(side=tk.LEFT)
+
+        # Show single frame by default
+        self.group_aliases_single_frame.pack(fill=tk.X, expand=True)
 
         # Progress frame
         self.group_aliases_progress = self.create_progress_frame(tab)
@@ -935,64 +981,114 @@ class GroupsWindow(BaseOperationWindow):
             variable=self.group_aliases_dry_run
         ).pack(side=tk.LEFT)
 
+    def toggle_group_aliases_mode(self):
+        """Toggle between single entry and CSV mode for group aliases."""
+        if self.group_aliases_mode.get() == "single":
+            self.group_aliases_csv_frame.pack_forget()
+            self.group_aliases_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.group_aliases_single_frame.pack_forget()
+            self.group_aliases_csv_frame.pack(fill=tk.X, expand=True)
+
+    def load_groups_for_aliases(self):
+        """Load groups into combobox for group aliases."""
+        # Set loading indicator
+        self.group_aliases_group_combo['values'] = ["Loading..."]
+        self.group_aliases_group_combo.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_groups
+            groups = fetch_groups()
+            if groups:
+                # Update combobox in main thread
+                self.after(0, lambda: self.group_aliases_group_combo.configure(values=sorted(groups)))
+                self.after(0, lambda: self.group_aliases_group_combo.set(""))
+            else:
+                self.after(0, lambda: self.group_aliases_group_combo.configure(values=["No groups found"]))
+                self.after(0, lambda: self.group_aliases_group_combo.set("No groups found"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_group_aliases(self):
         """Execute group aliases operation."""
-        csv_file = self.group_aliases_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
-
+        mode = self.group_aliases_mode.get()
         action = self.group_aliases_action.get()
         dry_run = self.group_aliases_dry_run.get()
 
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                data = list(reader)
+        if mode == "single":
+            # Single entry mode
+            alias = self.group_aliases_alias.get().strip()
 
-            if not data:
-                messagebox.showerror("Error", "CSV file is empty.")
+            if not alias:
+                messagebox.showerror("Validation Error", "Alias is required.")
                 return
 
             if action == 'add':
-                # Validate add format
-                for row in data:
-                    if 'group' not in row or not row['group']:
-                        messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
-                        return
-                    if 'alias' not in row or not row['alias']:
-                        messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
-                        return
+                group = self.group_aliases_group_combo.get().strip()
+                if not group:
+                    messagebox.showerror("Validation Error", "Group is required for add action.")
+                    return
+                data = [{'group': group, 'alias': alias}]
+            else:  # remove
+                data = [{'alias': alias}]
 
-                if not self.confirm_bulk_operation(len(data), "add group aliases"):
+        else:
+            # CSV mode
+            csv_file = self.group_aliases_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    data = list(reader)
+
+                if not data:
+                    messagebox.showerror("Error", "CSV file is empty.")
                     return
 
-                self.run_operation(
-                    groups_module.add_group_alias,
-                    self.group_aliases_progress,
-                    data,
-                    dry_run=dry_run
-                )
-            else:
-                # Remove - just need list of aliases
-                if 'alias' not in data[0]:
-                    messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
+                if action == 'add':
+                    # Validate add format
+                    for row in data:
+                        if 'group' not in row or not row['group']:
+                            messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
+                            return
+                        if 'alias' not in row or not row['alias']:
+                            messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
+                            return
+                else:
+                    # Validate remove format
+                    for row in data:
+                        if 'alias' not in row or not row['alias']:
+                            messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
+                            return
+
+                # Confirm bulk operation
+                if not self.confirm_bulk_operation(len(data), f"{action} group aliases"):
                     return
 
-                aliases = [row['alias'] for row in data if row.get('alias')]
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
 
-                if not self.confirm_bulk_operation(len(aliases), "remove group aliases"):
-                    return
-
-                self.run_operation(
-                    groups_module.remove_group_alias,
-                    self.group_aliases_progress,
-                    aliases,
-                    dry_run=dry_run
-                )
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        # Execute
+        if action == 'add':
+            self.run_operation(
+                groups_module.add_group_alias,
+                self.group_aliases_progress,
+                data,
+                dry_run=dry_run
+            )
+        else:  # remove
+            self.run_operation(
+                groups_module.remove_group_alias,
+                self.group_aliases_progress,
+                data,
+                dry_run=dry_run
+            )
 
     # ==================== TAB 7: USER'S GROUPS ====================
 
