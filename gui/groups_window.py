@@ -303,7 +303,7 @@ class GroupsWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Add or remove members from groups. Use CSV for bulk operations.",
+            text="Add or remove members from groups. Choose single entry for individual operations or CSV for bulk operations.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
@@ -327,14 +327,68 @@ class GroupsWindow(BaseOperationWindow):
             value="remove"
         ).pack(side=tk.LEFT)
 
-        # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        # Mode selection
+        mode_frame = ttk.LabelFrame(tab, text="Input Mode", padding="10")
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(csv_frame, text="For Add: group,member,role (role: MEMBER, MANAGER, or OWNER)").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="For Remove: group,member").pack(anchor=tk.W, pady=(5, 10))
+        self.manage_members_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single Entry",
+            variable=self.manage_members_mode,
+            value="single",
+            command=self.toggle_manage_members_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.manage_members_mode,
+            value="csv",
+            command=self.toggle_manage_members_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific frames
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single entry frame
+        self.manage_members_single_frame = ttk.LabelFrame(mode_container, text="Member Details", padding="10")
+
+        # Group selection with dropdown
+        group_frame = ttk.Frame(self.manage_members_single_frame)
+        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+
+        ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
+        self.manage_members_group_combo = ttk.Combobox(group_frame, width=47, state='readonly')
+        self.manage_members_group_combo.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_manage_members).pack(side=tk.LEFT)
+
+        # Member email
+        ttk.Label(self.manage_members_single_frame, text="Member Email:").grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
+        self.manage_members_email = ttk.Entry(self.manage_members_single_frame, width=50)
+        self.manage_members_email.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Role selection (for add action)
+        ttk.Label(self.manage_members_single_frame, text="Role (for Add):").grid(row=2, column=0, sticky=tk.W)
+        self.manage_members_role = ttk.Combobox(
+            self.manage_members_single_frame,
+            values=["MEMBER", "MANAGER", "OWNER"],
+            state='readonly',
+            width=47
+        )
+        self.manage_members_role.set("MEMBER")
+        self.manage_members_role.grid(row=2, column=1, sticky=tk.W)
+
+        self.manage_members_single_frame.grid_columnconfigure(1, weight=1)
+
+        # CSV frame
+        self.manage_members_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
+
+        ttk.Label(self.manage_members_csv_frame, text="For Add: group,member,role (role: MEMBER, MANAGER, or OWNER)").pack(anchor=tk.W)
+        ttk.Label(self.manage_members_csv_frame, text="For Remove: group,member").pack(anchor=tk.W, pady=(5, 10))
+
+        csv_input_frame = ttk.Frame(self.manage_members_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.manage_members_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -345,6 +399,9 @@ class GroupsWindow(BaseOperationWindow):
             text="Browse",
             command=lambda: self.browse_csv_file(self.manage_members_csv_entry)
         ).pack(side=tk.LEFT)
+
+        # Show single frame by default
+        self.manage_members_single_frame.pack(fill=tk.X, expand=True)
 
         # Progress frame
         self.manage_members_progress = self.create_progress_frame(tab)
@@ -369,54 +426,109 @@ class GroupsWindow(BaseOperationWindow):
             variable=self.manage_members_dry_run
         ).pack(side=tk.LEFT)
 
+    def toggle_manage_members_mode(self):
+        """Toggle between single entry and CSV mode for manage members."""
+        if self.manage_members_mode.get() == "single":
+            self.manage_members_csv_frame.pack_forget()
+            self.manage_members_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.manage_members_single_frame.pack_forget()
+            self.manage_members_csv_frame.pack(fill=tk.X, expand=True)
+
+    def load_groups_for_manage_members(self):
+        """Load groups into combobox for manage members."""
+        # Set loading indicator
+        self.manage_members_group_combo['values'] = ["Loading..."]
+        self.manage_members_group_combo.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_groups
+            groups = fetch_groups()
+            if groups:
+                # Update combobox in main thread
+                self.after(0, lambda: self.manage_members_group_combo.configure(values=sorted(groups)))
+                self.after(0, lambda: self.manage_members_group_combo.set(""))
+            else:
+                self.after(0, lambda: self.manage_members_group_combo.configure(values=["No groups found"]))
+                self.after(0, lambda: self.manage_members_group_combo.set("No groups found"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_manage_members(self):
         """Execute manage members operation."""
-        csv_file = self.manage_members_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
-
+        mode = self.manage_members_mode.get()
         action = self.manage_members_action.get()
         dry_run = self.manage_members_dry_run.get()
 
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                data = list(reader)
+        if mode == "single":
+            # Single entry mode
+            group = self.manage_members_group_combo.get().strip()
+            member = self.manage_members_email.get().strip()
+            role = self.manage_members_role.get()
 
-            if not data:
-                messagebox.showerror("Error", "CSV file is empty.")
+            if not group:
+                messagebox.showerror("Validation Error", "Group is required.")
+                return
+            if not member:
+                messagebox.showerror("Validation Error", "Member email is required.")
                 return
 
-            # Validate fields
-            for row in data:
-                if 'group' not in row or not row['group']:
-                    messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
-                    return
-                if 'member' not in row or not row['member']:
-                    messagebox.showerror("Validation Error", "Missing 'member' field in CSV.")
-                    return
-
-            if not self.confirm_bulk_operation(len(data), f"{action} members"):
-                return
-
+            # Build data dict
             if action == 'add':
-                self.run_operation(
-                    groups_module.add_members,
-                    self.manage_members_progress,
-                    data,
-                    dry_run=dry_run
-                )
-            else:
-                self.run_operation(
-                    groups_module.remove_members,
-                    self.manage_members_progress,
-                    data,
-                    dry_run=dry_run
-                )
+                data = [{'group': group, 'member': member, 'role': role}]
+            else:  # remove
+                data = [{'group': group, 'member': member}]
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        else:
+            # CSV mode
+            csv_file = self.manage_members_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    data = list(reader)
+
+                if not data:
+                    messagebox.showerror("Error", "CSV file is empty.")
+                    return
+
+                # Validate fields
+                for row in data:
+                    if 'group' not in row or not row['group']:
+                        messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
+                        return
+                    if 'member' not in row or not row['member']:
+                        messagebox.showerror("Validation Error", "Missing 'member' field in CSV.")
+                        return
+
+                # Confirm bulk operation
+                if not self.confirm_bulk_operation(len(data), f"{action} members"):
+                    return
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
+
+        # Execute
+        if action == 'add':
+            self.run_operation(
+                groups_module.add_members,
+                self.manage_members_progress,
+                data,
+                dry_run=dry_run
+            )
+        else:
+            self.run_operation(
+                groups_module.remove_members,
+                self.manage_members_progress,
+                data,
+                dry_run=dry_run
+            )
 
     # ==================== TAB 4: LIST MEMBERS ====================
 
