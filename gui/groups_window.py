@@ -244,8 +244,8 @@ class GroupsWindow(BaseOperationWindow):
         )
         warning.pack(pady=(0, 10), anchor=tk.W)
 
-        # Target selection (use group-specific selector)
-        self.delete_groups_target = self.create_group_target_selection_frame(tab, 'delete_groups')
+        # Target selection (use single-group selector for safety - no "All Groups" option)
+        self.delete_groups_target = self.create_single_group_target_selection_frame(tab, 'delete_groups')
         self.delete_groups_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
