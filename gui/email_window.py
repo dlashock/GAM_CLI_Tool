@@ -148,8 +148,8 @@ class EmailWindow(BaseOperationWindow):
         tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Delegates")
 
-        # Target selection
-        target_frame = self.create_target_selection_frame(tab, "delegates")
+        # Target selection (simplified - no "All Users" or "Group")
+        target_frame = self.create_single_user_target_selection_frame(tab, "delegates")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -385,8 +385,8 @@ class EmailWindow(BaseOperationWindow):
         tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Forwarding")
 
-        # Target selection
-        target_frame = self.create_target_selection_frame(tab, "forwarding")
+        # Target selection (simplified - no "All Users" or "Group")
+        target_frame = self.create_single_user_target_selection_frame(tab, "forwarding")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters

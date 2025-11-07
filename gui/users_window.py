@@ -292,8 +292,8 @@ class UsersWindow(BaseOperationWindow):
         )
         warning.pack(pady=(0, 10), anchor=tk.W)
 
-        # Target selection
-        self.delete_users_target = self.create_target_selection_frame(tab, 'delete_users')
+        # Target selection (simplified - no "All Users" or "Group" for safety)
+        self.delete_users_target = self.create_single_user_target_selection_frame(tab, 'delete_users')
         self.delete_users_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
@@ -377,8 +377,8 @@ class UsersWindow(BaseOperationWindow):
             value="restore"
         ).pack(side=tk.LEFT)
 
-        # Target selection
-        self.suspend_restore_target = self.create_target_selection_frame(tab, 'suspend_restore')
+        # Target selection (simplified - no "All Users" or "Group" for safety)
+        self.suspend_restore_target = self.create_single_user_target_selection_frame(tab, 'suspend_restore')
         self.suspend_restore_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
