@@ -7,17 +7,13 @@ message deletion, delegate management, signatures, forwarding, labels, and filte
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
-import threading
-import queue
 import re
 
+from gui.base_operation_window import BaseOperationWindow
 from modules import email as email_module
-from utils.workspace_data import fetch_users, fetch_groups
-from utils.csv_handler import validate_csv, read_csv_emails
-from utils.logger import read_log_file, get_log_file_path
 
 
-class EmailWindow(tk.Toplevel):
+class EmailWindow(BaseOperationWindow):
     """
     Email Operations window with tabbed interface.
 
@@ -37,65 +33,16 @@ class EmailWindow(tk.Toplevel):
         Args:
             parent: The parent tkinter widget
         """
-        super().__init__(parent)
+        super().__init__(parent, "Email Operations", "950x750", (800, 600))
 
-        self.title("Email Operations")
-        self.geometry("950x750")
-        self.minsize(800, 600)
-
-        # Center the window
-        self.transient(parent)
-
-        # Variables for tracking state
-        self.operation_running = False
-        self.current_thread = None
-
-        # Create UI
-        self.create_widgets()
-
-        # Center on screen
-        self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (self.winfo_width() // 2)
-        y = (self.winfo_screenheight() // 2) - (self.winfo_height() // 2)
-        self.geometry(f'+{x}+{y}')
-
-    def create_widgets(self):
-        """Create and layout all widgets."""
-        # Main container
-        main_container = ttk.Frame(self, padding="10")
-        main_container.pack(fill=tk.BOTH, expand=True)
-
-        # Title
-        title_label = ttk.Label(
-            main_container,
-            text="Email Operations",
-            font=('Arial', 16, 'bold')
-        )
-        title_label.pack(pady=(0, 10))
-
-        # Create notebook for tabs
-        self.notebook = ttk.Notebook(main_container)
-        self.notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        # Create all tabs
+    def create_operation_tabs(self):
+        """Create all email operation tabs."""
         self.create_delete_messages_tab()
         self.create_delegates_tab()
         self.create_signatures_tab()
         self.create_forwarding_tab()
         self.create_labels_tab()
         self.create_filters_tab()
-
-        # Bottom buttons
-        button_frame = ttk.Frame(main_container)
-        button_frame.pack(fill=tk.X, pady=(5, 0))
-
-        close_button = ttk.Button(
-            button_frame,
-            text="Close",
-            command=self.destroy,
-            width=15
-        )
-        close_button.pack(side=tk.RIGHT, padx=5)
 
     # ==================== TAB 1: DELETE MESSAGES ====================
 
@@ -179,7 +126,7 @@ class EmailWindow(tk.Toplevel):
             messagebox.showerror("Validation Error", "Date To must be in YYYY/MM/DD format.")
             return
 
-        # Confirmation
+        # Confirmation for multiple users
         if len(users) > 1:
             if not messagebox.askyesno(
                 "Confirm Operation",
@@ -253,7 +200,7 @@ class EmailWindow(tk.Toplevel):
 
         action = self.delegate_action.get()
 
-        # Confirmation
+        # Confirmation for multiple users
         if len(users) > 1:
             action_text = "add delegate to" if action == "add" else "remove delegate from"
             if not messagebox.askyesno(
@@ -408,7 +355,7 @@ class EmailWindow(tk.Toplevel):
                     messagebox.showerror("File Error", f"Failed to read file: {e}")
                     return
 
-        # Confirmation
+        # Confirmation for multiple users
         if len(users) > 1:
             action_text = "set signature for" if action == "set" else "remove signature from"
             if not messagebox.askyesno(
@@ -501,7 +448,7 @@ class EmailWindow(tk.Toplevel):
                 messagebox.showerror("Validation Error", "Please enter a valid email address to forward to.")
                 return
 
-        # Confirmation
+        # Confirmation for multiple users
         if len(users) > 1:
             action_text = "enable forwarding for" if action == "enable" else "disable forwarding for"
             if not messagebox.askyesno(
@@ -583,7 +530,7 @@ class EmailWindow(tk.Toplevel):
 
         action = self.label_action.get()
 
-        # Confirmation
+        # Confirmation for multiple users
         if len(users) > 1:
             action_text = f"{action} label for"
             if not messagebox.askyesno(
@@ -719,7 +666,7 @@ class EmailWindow(tk.Toplevel):
                 messagebox.showerror("Validation Error", "Please enter a filter ID.")
                 return
 
-        # Confirmation
+        # Confirmation for multiple users
         if len(users) > 1:
             action_text = f"{action} filter for"
             if not messagebox.askyesno(
@@ -741,361 +688,3 @@ class EmailWindow(tk.Toplevel):
                 self.filters_progress_frame,
                 users, filter_id
             )
-
-    # ==================== COMMON COMPONENTS ====================
-
-    def create_target_selection_frame(self, parent, tab_id):
-        """
-        Create target selection frame for a tab.
-
-        Args:
-            parent: Parent widget
-            tab_id: Unique identifier for this tab's variables
-
-        Returns:
-            ttk.LabelFrame: The target selection frame
-        """
-        frame = ttk.LabelFrame(parent, text="Target Users", padding="10")
-
-        # Create variables for this tab
-        target_var = tk.StringVar(value="single")
-        setattr(self, f"{tab_id}_target_var", target_var)
-
-        # Radio buttons
-        radio_frame = ttk.Frame(frame)
-        radio_frame.pack(fill=tk.X, pady=(0, 10))
-
-        ttk.Radiobutton(radio_frame, text="Single User", variable=target_var,
-                       value="single", command=lambda: self.update_target_input(tab_id)).pack(anchor=tk.W)
-        ttk.Radiobutton(radio_frame, text="Group", variable=target_var,
-                       value="group", command=lambda: self.update_target_input(tab_id)).pack(anchor=tk.W)
-        ttk.Radiobutton(radio_frame, text="All Users", variable=target_var,
-                       value="all", command=lambda: self.update_target_input(tab_id)).pack(anchor=tk.W)
-        ttk.Radiobutton(radio_frame, text="CSV File", variable=target_var,
-                       value="csv", command=lambda: self.update_target_input(tab_id)).pack(anchor=tk.W)
-        ttk.Radiobutton(radio_frame, text="Select from List", variable=target_var,
-                       value="list", command=lambda: self.update_target_input(tab_id)).pack(anchor=tk.W)
-
-        # Input frame
-        input_frame = ttk.Frame(frame)
-        input_frame.pack(fill=tk.X)
-        setattr(self, f"{tab_id}_input_frame", input_frame)
-
-        # Create different input widgets
-        # Single user / Group entry
-        entry = ttk.Entry(input_frame, width=40)
-        setattr(self, f"{tab_id}_entry", entry)
-
-        # CSV file browser
-        csv_frame = ttk.Frame(input_frame)
-        csv_entry = ttk.Entry(csv_frame, width=30)
-        csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        ttk.Button(csv_frame, text="Browse...",
-                  command=lambda: self.browse_csv(tab_id)).pack(side=tk.LEFT)
-        setattr(self, f"{tab_id}_csv_frame", csv_frame)
-        setattr(self, f"{tab_id}_csv_entry", csv_entry)
-
-        # List selection
-        list_frame = ttk.Frame(input_frame)
-        list_label = ttk.Label(list_frame, text="Select users:")
-        list_label.pack(anchor=tk.W)
-        list_scroll = ttk.Scrollbar(list_frame)
-        list_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        listbox = tk.Listbox(list_frame, selectmode=tk.MULTIPLE,
-                           yscrollcommand=list_scroll.set, height=6)
-        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        list_scroll.config(command=listbox.yview)
-        load_btn = ttk.Button(list_frame, text="Load Users",
-                            command=lambda: self.load_users_list(tab_id))
-        load_btn.pack(pady=(5, 0))
-        setattr(self, f"{tab_id}_list_frame", list_frame)
-        setattr(self, f"{tab_id}_listbox", listbox)
-
-        # All users label
-        all_label = ttk.Label(input_frame, text="All users will be affected")
-        setattr(self, f"{tab_id}_all_label", all_label)
-
-        # Initial update
-        self.update_target_input(tab_id)
-
-        return frame
-
-    def update_target_input(self, tab_id):
-        """Update the input widget based on target selection."""
-        target_var = getattr(self, f"{tab_id}_target_var")
-        input_frame = getattr(self, f"{tab_id}_input_frame")
-
-        # Clear all widgets
-        for widget in input_frame.winfo_children():
-            widget.pack_forget()
-
-        # Show appropriate widget
-        target = target_var.get()
-        if target == "single":
-            entry = getattr(self, f"{tab_id}_entry")
-            entry.pack(fill=tk.X)
-            entry.delete(0, tk.END)
-            ttk.Label(input_frame, text="Enter email address",
-                     font=('Arial', 8), foreground='gray').pack(anchor=tk.W)
-        elif target == "group":
-            entry = getattr(self, f"{tab_id}_entry")
-            entry.pack(fill=tk.X)
-            entry.delete(0, tk.END)
-            ttk.Label(input_frame, text="Enter group email address",
-                     font=('Arial', 8), foreground='gray').pack(anchor=tk.W)
-        elif target == "all":
-            label = getattr(self, f"{tab_id}_all_label")
-            label.pack()
-        elif target == "csv":
-            csv_frame = getattr(self, f"{tab_id}_csv_frame")
-            csv_frame.pack(fill=tk.X)
-        elif target == "list":
-            list_frame = getattr(self, f"{tab_id}_list_frame")
-            list_frame.pack(fill=tk.BOTH, expand=True)
-
-    def browse_csv(self, tab_id):
-        """Browse for CSV file."""
-        filename = filedialog.askopenfilename(
-            title="Select CSV File",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-        if filename:
-            csv_entry = getattr(self, f"{tab_id}_csv_entry")
-            csv_entry.delete(0, tk.END)
-            csv_entry.insert(0, filename)
-
-    def load_users_list(self, tab_id):
-        """Load users into listbox."""
-        listbox = getattr(self, f"{tab_id}_listbox")
-
-        # Clear current items
-        listbox.delete(0, tk.END)
-
-        # Show loading message
-        listbox.insert(tk.END, "Loading users...")
-        listbox.config(state=tk.DISABLED)
-        self.update_idletasks()
-
-        # Fetch users in thread
-        def fetch_and_populate():
-            users = fetch_users()
-            self.after(0, lambda: self.populate_listbox(tab_id, users))
-
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
-
-    def populate_listbox(self, tab_id, users):
-        """Populate listbox with users."""
-        listbox = getattr(self, f"{tab_id}_listbox")
-        listbox.config(state=tk.NORMAL)
-        listbox.delete(0, tk.END)
-
-        if users:
-            for user in sorted(users):
-                listbox.insert(tk.END, user)
-        else:
-            listbox.insert(tk.END, "(No users found or error fetching)")
-
-    def get_target_users(self, tab_id):
-        """
-        Get the list of target users based on selection.
-
-        Args:
-            tab_id: Tab identifier
-
-        Returns:
-            list: List of user email addresses, or None if validation fails
-        """
-        target_var = getattr(self, f"{tab_id}_target_var")
-        target = target_var.get()
-
-        if target == "single":
-            entry = getattr(self, f"{tab_id}_entry")
-            email = entry.get().strip()
-            if not email or '@' not in email:
-                messagebox.showerror("Validation Error", "Please enter a valid email address.")
-                return None
-            return [email]
-
-        elif target == "group":
-            entry = getattr(self, f"{tab_id}_entry")
-            group_email = entry.get().strip()
-            if not group_email or '@' not in group_email:
-                messagebox.showerror("Validation Error", "Please enter a valid group email address.")
-                return None
-            # For now, return as single item. Could expand to group members.
-            return [group_email]
-
-        elif target == "all":
-            users = fetch_users()
-            if not users:
-                messagebox.showerror("Error", "Failed to fetch users or no users found.")
-                return None
-            return users
-
-        elif target == "csv":
-            csv_entry = getattr(self, f"{tab_id}_csv_entry")
-            file_path = csv_entry.get().strip()
-            if not file_path:
-                messagebox.showerror("Validation Error", "Please select a CSV file.")
-                return None
-
-            success, result = read_csv_emails(file_path)
-            if not success:
-                messagebox.showerror("CSV Error", result)
-                return None
-            return result
-
-        elif target == "list":
-            listbox = getattr(self, f"{tab_id}_listbox")
-            selection = listbox.curselection()
-            if not selection:
-                messagebox.showerror("Validation Error", "Please select at least one user from the list.")
-                return None
-            users = [listbox.get(i) for i in selection]
-            return users
-
-        return None
-
-    def create_progress_frame(self, parent):
-        """
-        Create progress and results frame.
-
-        Args:
-            parent: Parent widget
-
-        Returns:
-            ttk.LabelFrame: The progress frame
-        """
-        frame = ttk.LabelFrame(parent, text="Progress and Results", padding="10")
-
-        # Progress bar
-        progress_bar = ttk.Progressbar(frame, mode='indeterminate')
-        progress_bar.pack(fill=tk.X, pady=(0, 10))
-
-        # Results text area
-        results_text = scrolledtext.ScrolledText(frame, height=10, width=60, state=tk.DISABLED)
-        results_text.pack(fill=tk.BOTH, expand=True)
-
-        # Store references
-        frame.progress_bar = progress_bar
-        frame.results_text = results_text
-
-        # Buttons
-        btn_frame = ttk.Frame(frame)
-        btn_frame.pack(fill=tk.X, pady=(10, 0))
-
-        clear_btn = ttk.Button(btn_frame, text="Clear Results",
-                              command=lambda: self.clear_results(frame))
-        clear_btn.pack(side=tk.LEFT, padx=(0, 5))
-
-        log_btn = ttk.Button(btn_frame, text="View Error Log",
-                            command=self.view_error_log)
-        log_btn.pack(side=tk.LEFT)
-
-        return frame
-
-    def clear_results(self, progress_frame):
-        """Clear results text area."""
-        progress_frame.results_text.config(state=tk.NORMAL)
-        progress_frame.results_text.delete("1.0", tk.END)
-        progress_frame.results_text.config(state=tk.DISABLED)
-
-    def view_error_log(self):
-        """Open error log in a new window."""
-        log_window = tk.Toplevel(self)
-        log_window.title("Error Log")
-        log_window.geometry("700x500")
-
-        text_widget = scrolledtext.ScrolledText(log_window, wrap=tk.WORD)
-        text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # Read log file
-        log_content = read_log_file()
-        if log_content:
-            text_widget.insert("1.0", log_content)
-        else:
-            text_widget.insert("1.0", "No errors logged yet or log file not found.")
-
-        text_widget.config(state=tk.DISABLED)
-
-        # Close button
-        ttk.Button(log_window, text="Close", command=log_window.destroy).pack(pady=(0, 10))
-
-    # ==================== OPERATION EXECUTION ====================
-
-    def run_operation(self, operation_func, progress_frame, *args):
-        """
-        Run an operation in a background thread.
-
-        Args:
-            operation_func: The email module function to call
-            progress_frame: The progress frame for this operation
-            *args: Arguments to pass to operation_func
-        """
-        if self.operation_running:
-            return
-
-        self.operation_running = True
-
-        # Clear and prepare UI
-        progress_frame.results_text.config(state=tk.NORMAL)
-        progress_frame.results_text.delete("1.0", tk.END)
-        progress_frame.progress_bar.start(10)
-
-        # Create queue for communication
-        result_queue = queue.Queue()
-
-        # Worker thread
-        def worker():
-            try:
-                for progress in operation_func(*args):
-                    result_queue.put(('progress', progress))
-                result_queue.put(('done', None))
-            except Exception as e:
-                result_queue.put(('error', str(e)))
-
-        # Start thread
-        thread = threading.Thread(target=worker, daemon=True)
-        thread.start()
-
-        # Start checking queue
-        self.check_operation_queue(progress_frame, result_queue)
-
-    def check_operation_queue(self, progress_frame, result_queue):
-        """Check queue for operation updates."""
-        try:
-            msg_type, msg_data = result_queue.get_nowait()
-
-            if msg_type == 'progress':
-                # Update progress display
-                message = msg_data.get('message', '')
-                if message:
-                    progress_frame.results_text.config(state=tk.NORMAL)
-                    progress_frame.results_text.insert(tk.END, message + "\n")
-                    progress_frame.results_text.see(tk.END)
-                    progress_frame.results_text.config(state=tk.DISABLED)
-
-                # Continue checking
-                self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue))
-
-            elif msg_type == 'done':
-                # Operation complete
-                progress_frame.progress_bar.stop()
-                progress_frame.results_text.config(state=tk.NORMAL)
-                progress_frame.results_text.insert(tk.END, "\n" + "="*50 + "\n")
-                progress_frame.results_text.insert(tk.END, "Operation completed!\n")
-                progress_frame.results_text.config(state=tk.DISABLED)
-                self.operation_running = False
-
-            elif msg_type == 'error':
-                # Operation error
-                progress_frame.progress_bar.stop()
-                progress_frame.results_text.config(state=tk.NORMAL)
-                progress_frame.results_text.insert(tk.END, f"\nERROR: {msg_data}\n")
-                progress_frame.results_text.config(state=tk.DISABLED)
-                self.operation_running = False
-                messagebox.showerror("Operation Error", f"An error occurred: {msg_data}")
-
-        except queue.Empty:
-            # No message yet, check again soon
-            self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue))
