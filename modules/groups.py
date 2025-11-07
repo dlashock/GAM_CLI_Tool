@@ -98,7 +98,7 @@ def create_group(groups_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((email, error_msg))
                 log_error("Create Group", f"Failed for {email}: {error_msg}")
                 yield {
@@ -176,7 +176,7 @@ def delete_group(groups, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((group_email, error_msg))
                 log_error("Delete Group", f"Failed for {group_email}: {error_msg}")
                 yield {
@@ -271,7 +271,7 @@ def add_members(membership_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((f"{member} to {group}", error_msg))
                 log_error("Add Member", f"Failed for {member} to {group}: {error_msg}")
                 yield {
@@ -354,7 +354,7 @@ def remove_members(membership_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((f"{member} from {group}", error_msg))
                 log_error("Remove Member", f"Failed for {member} from {group}: {error_msg}")
                 yield {
@@ -421,7 +421,7 @@ def list_members(group_email):
 
             return (True, members)
         else:
-            error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+            error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
             log_error("List Members", f"Failed for {group_email}: {error_msg}")
             return (False, error_msg)
 
@@ -510,7 +510,7 @@ def update_group_settings(settings_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((group, error_msg))
                 log_error("Update Settings", f"Failed for {group}: {error_msg}")
                 yield {
@@ -561,7 +561,7 @@ def get_group_info(group_email):
 
             return (True, group_info)
         else:
-            error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+            error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
             log_error("Get Group Info", f"Failed for {group_email}: {error_msg}")
             return (False, error_msg)
 
@@ -607,7 +607,7 @@ def list_user_groups(user_email):
 
             return (True, groups)
         else:
-            error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+            error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
             log_error("List User Groups", f"Failed for {user_email}: {error_msg}")
             return (False, error_msg)
 
@@ -683,7 +683,7 @@ def add_group_alias(alias_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((group, error_msg))
                 log_error("Add Group Alias", f"Failed for {group}: {error_msg}")
                 yield {
@@ -763,7 +763,7 @@ def remove_group_alias(aliases, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((alias, error_msg))
                 log_error("Remove Group Alias", f"Failed for {alias}: {error_msg}")
                 yield {

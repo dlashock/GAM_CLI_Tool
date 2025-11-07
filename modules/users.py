@@ -102,9 +102,9 @@ def create_user(users_data, dry_run=False):
             ]
 
             if title:
-                cmd.extend(['title', title])
+                cmd.extend(['organization', 'title', title])
             if phone:
-                cmd.extend(['phone', phone])
+                cmd.extend(['phone', phone, 'type', 'work'])
 
             if dry_run:
                 yield {
@@ -126,7 +126,7 @@ def create_user(users_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((email, error_msg))
                 log_error("Create User", f"Failed for {email}: {error_msg}")
                 yield {
@@ -206,7 +206,7 @@ def delete_user(users, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Delete User", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -284,7 +284,7 @@ def suspend_user(users, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Suspend User", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -362,7 +362,7 @@ def restore_user(users, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Restore User", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -455,7 +455,7 @@ def reset_password(users_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((email, error_msg))
                 log_error("Reset Password", f"Failed for {email}: {error_msg}")
                 yield {
@@ -527,11 +527,11 @@ def update_user_info(users_data, dry_run=False):
             if 'lastName' in user_data and user_data['lastName']:
                 cmd.extend(['lastname', user_data['lastName'].strip()])
             if 'title' in user_data and user_data['title']:
-                cmd.extend(['title', user_data['title'].strip()])
+                cmd.extend(['organization', 'title', user_data['title'].strip()])
             if 'phone' in user_data and user_data['phone']:
-                cmd.extend(['phone', user_data['phone'].strip()])
+                cmd.extend(['phone', user_data['phone'].strip(), 'type', 'work'])
             if 'address' in user_data and user_data['address']:
-                cmd.extend(['address', user_data['address'].strip()])
+                cmd.extend(['address', 'type', 'work', 'structured', user_data['address'].strip()])
 
             # Check if any updates provided
             if len(cmd) == 4:  # Only [gam, update, user, email]
@@ -565,7 +565,7 @@ def update_user_info(users_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((email, error_msg))
                 log_error("Update User Info", f"Failed for {email}: {error_msg}")
                 yield {
@@ -658,7 +658,7 @@ def change_org_unit(users_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((email, error_msg))
                 log_error("Change OU", f"Failed for {email}: {error_msg}")
                 yield {
@@ -751,7 +751,7 @@ def add_alias(users_data, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((email, error_msg))
                 log_error("Add Alias", f"Failed for {email}: {error_msg}")
                 yield {
@@ -831,7 +831,7 @@ def remove_alias(aliases, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((alias, error_msg))
                 log_error("Remove Alias", f"Failed for {alias}: {error_msg}")
                 yield {
@@ -883,7 +883,7 @@ def get_user_info(user_email):
 
             return (True, user_info)
         else:
-            error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+            error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
             log_error("Get User Info", f"Failed for {user_email}: {error_msg}")
             return (False, error_msg)
 
@@ -921,7 +921,7 @@ def list_user_aliases(user_email):
 
             return (True, aliases)
         else:
-            error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+            error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
             log_error("List Aliases", f"Failed for {user_email}: {error_msg}")
             return (False, error_msg)
 
