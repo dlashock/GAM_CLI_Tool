@@ -703,7 +703,7 @@ def create_filter(users, from_addr=None, to_addr=None, subject=None, has_words=N
     errors = []
 
     # Build filter criteria
-    filter_parts = ['gam', 'user', '__USER__', 'filter']
+    filter_parts = [_get_gam_command(), 'user', '__USER__', 'filter']
 
     if from_addr:
         filter_parts.extend(['from', from_addr])
