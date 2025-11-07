@@ -438,18 +438,56 @@ class UsersWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Reset user passwords. Use CSV for bulk password resets.",
+            text="Reset user passwords. Choose single user or CSV for bulk resets.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
+        # Mode selection
+        mode_frame = ttk.Frame(tab)
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.reset_password_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single User",
+            variable=self.reset_password_mode,
+            value="single",
+            command=self.toggle_reset_password_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.reset_password_mode,
+            value="csv",
+            command=self.toggle_reset_password_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific content
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single user input frame
+        self.reset_password_single_frame = ttk.LabelFrame(mode_container, text="Password Reset", padding="10")
+
+        ttk.Label(self.reset_password_single_frame, text="User Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.reset_password_email = ttk.Entry(self.reset_password_single_frame, width=40)
+        self.reset_password_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.reset_password_single_frame, text="New Password*:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.reset_password_new = ttk.Entry(self.reset_password_single_frame, width=40, show="*")
+        self.reset_password_new.grid(row=1, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.reset_password_single_frame, text="* Required fields", font=('Arial', 8), foreground='gray').grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
+
+        self.reset_password_single_frame.grid_columnconfigure(1, weight=1)
+
         # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        self.reset_password_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
-        ttk.Label(csv_frame, text="CSV Format: email,password").pack(anchor=tk.W, pady=(0, 10))
+        ttk.Label(self.reset_password_csv_frame, text="CSV Format: email,password").pack(anchor=tk.W, pady=(0, 10))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        csv_input_frame = ttk.Frame(self.reset_password_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.reset_password_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -471,7 +509,7 @@ class UsersWindow(BaseOperationWindow):
 
         ttk.Button(
             btn_frame,
-            text="Reset Passwords",
+            text="Reset Password(s)",
             command=self.execute_reset_password,
             style='Accent.TButton'
         ).pack(side=tk.LEFT, padx=(0, 5))
@@ -483,6 +521,18 @@ class UsersWindow(BaseOperationWindow):
             text="Dry Run (preview only)",
             variable=self.reset_password_dry_run
         ).pack(side=tk.LEFT)
+
+        # Initial toggle
+        self.toggle_reset_password_mode()
+
+    def toggle_reset_password_mode(self):
+        """Toggle between single and CSV mode for reset password."""
+        if self.reset_password_mode.get() == "single":
+            self.reset_password_csv_frame.pack_forget()
+            self.reset_password_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.reset_password_single_frame.pack_forget()
+            self.reset_password_csv_frame.pack(fill=tk.X, expand=True)
 
     def browse_csv_for_reset_password(self):
         """Browse for CSV file for reset password."""
@@ -496,45 +546,69 @@ class UsersWindow(BaseOperationWindow):
 
     def execute_reset_password(self):
         """Execute reset password operation."""
-        csv_file = self.reset_password_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
+        mode = self.reset_password_mode.get()
 
-        # Read CSV
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                users_data = list(reader)
-
-            if not users_data:
-                messagebox.showerror("Error", "CSV file is empty.")
-                return
+        if mode == "single":
+            # Single user mode
+            email = self.reset_password_email.get().strip()
+            password = self.reset_password_new.get().strip()
 
             # Validate required fields
-            for user_data in users_data:
-                if 'email' not in user_data or not user_data['email']:
-                    messagebox.showerror("Validation Error", "Missing 'email' field in CSV.")
-                    return
-                if 'password' not in user_data or not user_data['password']:
-                    messagebox.showerror("Validation Error", "Missing 'password' field in CSV.")
-                    return
-
-            # Confirm
-            if not self.confirm_bulk_operation(len(users_data), "reset passwords"):
+            if not email:
+                messagebox.showerror("Validation Error", "User email is required.")
+                return
+            if not password:
+                messagebox.showerror("Validation Error", "New password is required.")
                 return
 
-            # Execute
-            dry_run = self.reset_password_dry_run.get()
-            self.run_operation(
-                users_module.reset_password,
-                self.reset_password_progress,
-                users_data,
-                dry_run=dry_run
-            )
+            # Create user data dict
+            users_data = [{
+                'email': email,
+                'password': password
+            }]
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        else:
+            # CSV mode
+            csv_file = self.reset_password_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            # Read CSV
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    users_data = list(reader)
+
+                if not users_data:
+                    messagebox.showerror("Error", "CSV file is empty.")
+                    return
+
+                # Validate required fields
+                for user_data in users_data:
+                    if 'email' not in user_data or not user_data['email']:
+                        messagebox.showerror("Validation Error", "Missing 'email' field in CSV.")
+                        return
+                    if 'password' not in user_data or not user_data['password']:
+                        messagebox.showerror("Validation Error", "Missing 'password' field in CSV.")
+                        return
+
+                # Confirm
+                if not self.confirm_bulk_operation(len(users_data), "reset passwords"):
+                    return
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
+
+        # Execute
+        dry_run = self.reset_password_dry_run.get()
+        self.run_operation(
+            users_module.reset_password,
+            self.reset_password_progress,
+            users_data,
+            dry_run=dry_run
+        )
 
     # ==================== TAB 5: UPDATE USER INFO ====================
 
