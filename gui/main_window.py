@@ -5,7 +5,7 @@ Displays the main menu with buttons for different administrative categories.
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 
 class MainWindow(ttk.Frame):
@@ -69,11 +69,11 @@ class MainWindow(ttk.Frame):
         # Define categories with their handlers
         categories = [
             ("Email Operations", self.open_email_window),
+            ("User Management", self.open_users_window),
             ("Group Management", self.open_groups_window),
             ("Reports", self.open_reports_window),
             ("Calendar Operations", self.open_calendar_window),
-            ("Drive Operations", self.open_drive_window),
-            ("ACL Management", self.open_acls_window)
+            ("Drive Operations", self.open_drive_window)
         ]
 
         # Create buttons in 2x3 grid
@@ -108,34 +108,75 @@ class MainWindow(ttk.Frame):
         try:
             from gui.email_window import EmailWindow
             EmailWindow(self.parent)
-        except ImportError:
-            # Email window not yet implemented - will be created by Agent 3
-            tk.messagebox.showinfo(
-                "Coming Soon",
-                "Email Operations module will be available soon!"
+        except ImportError as e:
+            messagebox.showinfo(
+                "Module Not Available",
+                "Email Operations module is not yet implemented."
             )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Email Operations: {str(e)}")
+
+    def open_users_window(self):
+        """Open the User Management window."""
+        try:
+            from gui.users_window import UsersWindow
+            UsersWindow(self.parent)
+        except ImportError as e:
+            messagebox.showinfo(
+                "Module Not Available",
+                "User Management module is not yet implemented."
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open User Management: {str(e)}")
 
     def open_groups_window(self):
         """Open the Groups Management window."""
-        from gui.groups_window import GroupsWindow
-        GroupsWindow(self.parent)
+        try:
+            from gui.groups_window import GroupsWindow
+            GroupsWindow(self.parent)
+        except ImportError as e:
+            messagebox.showinfo(
+                "Module Not Available",
+                "Group Management module is not yet implemented."
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Group Management: {str(e)}")
 
     def open_reports_window(self):
         """Open the Reports window."""
-        from gui.reports_window import ReportsWindow
-        ReportsWindow(self.parent)
+        try:
+            from gui.reports_window import ReportsWindow
+            ReportsWindow(self.parent)
+        except ImportError as e:
+            messagebox.showinfo(
+                "Module Not Available",
+                "Reports module is not yet implemented."
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Reports: {str(e)}")
 
     def open_calendar_window(self):
         """Open the Calendar Operations window."""
-        from gui.calendar_window import CalendarWindow
-        CalendarWindow(self.parent)
+        try:
+            from gui.calendar_window import CalendarWindow
+            CalendarWindow(self.parent)
+        except ImportError as e:
+            messagebox.showinfo(
+                "Module Not Available",
+                "Calendar Operations module is not yet implemented."
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Calendar Operations: {str(e)}")
 
     def open_drive_window(self):
         """Open the Drive Operations window."""
-        from gui.drive_window import DriveWindow
-        DriveWindow(self.parent)
-
-    def open_acls_window(self):
-        """Open the ACL Management window."""
-        from gui.acls_window import ACLsWindow
-        ACLsWindow(self.parent)
+        try:
+            from gui.drive_window import DriveWindow
+            DriveWindow(self.parent)
+        except ImportError as e:
+            messagebox.showinfo(
+                "Module Not Available",
+                "Drive Operations module is not yet implemented."
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Drive Operations: {str(e)}")
