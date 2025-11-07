@@ -434,11 +434,19 @@ class GroupsWindow(BaseOperationWindow):
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Group selection
-        group_frame = ttk.LabelFrame(tab, text="Group Email", padding="10")
+        group_frame = ttk.LabelFrame(tab, text="Select Group", padding="10")
         group_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.list_members_entry = ttk.Entry(group_frame, width=50)
-        self.list_members_entry.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
+
+        self.list_members_combo = ttk.Combobox(group_frame, width=47, state='readonly')
+        self.list_members_combo.pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(
+            group_frame,
+            text="Load Groups",
+            command=self.load_groups_for_list_members
+        ).pack(side=tk.LEFT, padx=(0, 10))
 
         ttk.Button(
             group_frame,
@@ -458,11 +466,29 @@ class GroupsWindow(BaseOperationWindow):
         self.list_members_text.pack(fill=tk.BOTH, expand=True)
         scroll.config(command=self.list_members_text.yview)
 
+    def load_groups_for_list_members(self):
+        """Load groups into the combobox for list members."""
+        self.list_members_combo['values'] = ["Loading..."]
+        self.list_members_combo.current(0)
+        self.update_idletasks()
+
+        # Fetch groups in thread
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_groups
+            groups = fetch_groups()
+            if groups:
+                self.after(0, lambda: self.list_members_combo.configure(values=sorted(groups)))
+            else:
+                self.after(0, lambda: self.list_members_combo.configure(values=["(No groups found)"]))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_list_members(self):
         """Execute list members operation."""
-        group_email = self.list_members_entry.get().strip()
-        if not group_email:
-            messagebox.showerror("Validation Error", "Please enter a group email.")
+        group_email = self.list_members_combo.get().strip()
+        if not group_email or group_email == "Loading..." or group_email == "(No groups found)":
+            messagebox.showerror("Validation Error", "Please select a group from the dropdown.")
             return
 
         self.list_members_text.delete("1.0", tk.END)
@@ -729,11 +755,19 @@ class GroupsWindow(BaseOperationWindow):
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # User selection
-        user_frame = ttk.LabelFrame(tab, text="User Email", padding="10")
+        user_frame = ttk.LabelFrame(tab, text="Select User", padding="10")
         user_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.user_groups_entry = ttk.Entry(user_frame, width=50)
-        self.user_groups_entry.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(user_frame, text="User:").pack(side=tk.LEFT, padx=(0, 5))
+
+        self.user_groups_combo = ttk.Combobox(user_frame, width=47, state='readonly')
+        self.user_groups_combo.pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(
+            user_frame,
+            text="Load Users",
+            command=self.load_users_for_user_groups
+        ).pack(side=tk.LEFT, padx=(0, 10))
 
         ttk.Button(
             user_frame,
@@ -753,11 +787,29 @@ class GroupsWindow(BaseOperationWindow):
         self.user_groups_text.pack(fill=tk.BOTH, expand=True)
         scroll.config(command=self.user_groups_text.yview)
 
+    def load_users_for_user_groups(self):
+        """Load users into the combobox for user groups."""
+        self.user_groups_combo['values'] = ["Loading..."]
+        self.user_groups_combo.current(0)
+        self.update_idletasks()
+
+        # Fetch users in thread
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.user_groups_combo.configure(values=sorted(users)))
+            else:
+                self.after(0, lambda: self.user_groups_combo.configure(values=["(No users found)"]))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_user_groups(self):
         """Execute user groups operation."""
-        user_email = self.user_groups_entry.get().strip()
-        if not user_email:
-            messagebox.showerror("Validation Error", "Please enter a user email.")
+        user_email = self.user_groups_combo.get().strip()
+        if not user_email or user_email == "Loading..." or user_email == "(No users found)":
+            messagebox.showerror("Validation Error", "Please select a user from the dropdown.")
             return
 
         self.user_groups_text.delete("1.0", tk.END)
