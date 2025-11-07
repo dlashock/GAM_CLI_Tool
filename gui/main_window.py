@@ -109,9 +109,9 @@ class MainWindow(ttk.Frame):
             from gui.email_window import EmailWindow
             EmailWindow(self.parent)
         except ImportError as e:
-            messagebox.showinfo(
-                "Module Not Available",
-                "Email Operations module is not yet implemented."
+            messagebox.showerror(
+                "Import Error",
+                f"Failed to import Email Operations module.\n\nError: {str(e)}\n\nPlease ensure you've pulled the latest changes."
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open Email Operations: {str(e)}")
@@ -122,9 +122,9 @@ class MainWindow(ttk.Frame):
             from gui.users_window import UsersWindow
             UsersWindow(self.parent)
         except ImportError as e:
-            messagebox.showinfo(
-                "Module Not Available",
-                "User Management module is not yet implemented."
+            messagebox.showerror(
+                "Import Error",
+                f"Failed to import User Management module.\n\nError: {str(e)}\n\nPlease ensure you've pulled the latest changes."
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open User Management: {str(e)}")
@@ -135,9 +135,9 @@ class MainWindow(ttk.Frame):
             from gui.groups_window import GroupsWindow
             GroupsWindow(self.parent)
         except ImportError as e:
-            messagebox.showinfo(
-                "Module Not Available",
-                "Group Management module is not yet implemented."
+            messagebox.showerror(
+                "Import Error",
+                f"Failed to import Group Management module.\n\nError: {str(e)}\n\nPlease ensure you've pulled the latest changes."
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open Group Management: {str(e)}")
