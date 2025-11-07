@@ -370,47 +370,60 @@ def remove_signature(users):
     failure_count = 0
     errors = []
 
-    for i, user_email in enumerate(users, start=1):
-        yield {
-            "status": "processing",
-            "email": user_email,
-            "current": i,
-            "total": total,
-            "message": f"Removing signature for {user_email}..."
-        }
+    # Create temporary empty file for removing signatures
+    import tempfile
+    temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)
+    try:
+        # Write empty content
+        os.write(temp_fd, b'')
+        os.close(temp_fd)
 
-        try:
-            cmd = [_get_gam_command(), 'user', user_email, 'signature', '']
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        for i, user_email in enumerate(users, start=1):
+            yield {
+                "status": "processing",
+                "email": user_email,
+                "current": i,
+                "total": total,
+                "message": f"Removing signature for {user_email}..."
+            }
 
-            if result.returncode == 0:
-                success_count += 1
-                yield {
-                    "status": "success",
-                    "email": user_email,
-                    "message": f"✓ Removed signature for {user_email}"
-                }
-            else:
+            try:
+                cmd = [_get_gam_command(), 'user', user_email, 'signature', 'file', temp_path]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+                if result.returncode == 0:
+                    success_count += 1
+                    yield {
+                        "status": "success",
+                        "email": user_email,
+                        "message": f"✓ Removed signature for {user_email}"
+                    }
+                else:
+                    failure_count += 1
+                    error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
+                    errors.append((user_email, error_msg))
+                    log_error("Remove Signature", f"Failed for {user_email}: {error_msg}")
+                    yield {
+                        "status": "error",
+                        "email": user_email,
+                        "message": f"✗ Failed for {user_email}"
+                    }
+
+            except Exception as e:
                 failure_count += 1
-                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
+                error_msg = str(e)
                 errors.append((user_email, error_msg))
-                log_error("Remove Signature", f"Failed for {user_email}: {error_msg}")
+                log_error("Remove Signature", f"Exception for {user_email}: {error_msg}")
                 yield {
                     "status": "error",
                     "email": user_email,
-                    "message": f"✗ Failed for {user_email}"
+                    "message": f"✗ Error for {user_email}"
                 }
 
-        except Exception as e:
-            failure_count += 1
-            error_msg = str(e)
-            errors.append((user_email, error_msg))
-            log_error("Remove Signature", f"Exception for {user_email}: {error_msg}")
-            yield {
-                "status": "error",
-                "email": user_email,
-                "message": f"✗ Error for {user_email}"
-            }
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     return {
         "success_count": success_count,

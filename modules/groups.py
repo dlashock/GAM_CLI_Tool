@@ -599,10 +599,15 @@ def list_user_groups(user_email):
             reader = csv.DictReader(StringIO(result.stdout))
             for row in reader:
                 # GAM output typically has: user, group, role, type, status
-                # The group email can be in 'group' or 'email' column
-                group_email = row.get('group', row.get('email', '')).strip()
+                # Try multiple column name variations (case-insensitive)
+                group_email = ''
+                for key in ['group', 'Group', 'email', 'Email', 'id', 'Id']:
+                    if key in row and row[key]:
+                        group_email = row[key].strip()
+                        break
 
-                if group_email and group_email != user_email:
+                # Only add if it's a valid email and not the user's own email
+                if group_email and '@' in group_email and group_email != user_email:
                     groups.append(group_email)
 
             return (True, groups)
@@ -729,8 +734,12 @@ def remove_group_alias(aliases, dry_run=False):
     failure_count = 0
     errors = []
 
-    for i, alias in enumerate(aliases, start=1):
-        alias = alias.strip()
+    for i, alias_data in enumerate(aliases, start=1):
+        # Handle both dict format {'alias': '...'} and string format
+        if isinstance(alias_data, dict):
+            alias = alias_data.get('alias', '').strip()
+        else:
+            alias = alias_data.strip()
 
         yield {
             'status': 'processing',
