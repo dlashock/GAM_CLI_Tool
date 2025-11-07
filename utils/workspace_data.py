@@ -9,6 +9,18 @@ import subprocess
 import csv
 from io import StringIO
 from .logger import log_error
+from .gam_path import get_gam_path
+
+
+def _get_gam_command():
+    """
+    Get the GAM command to use (handles PATH and non-PATH installations).
+
+    Returns:
+        str or list: GAM command ('gam' or full path)
+    """
+    gam_path = get_gam_path()
+    return gam_path if gam_path else 'gam'
 
 
 # Session cache for users and groups
@@ -35,8 +47,9 @@ def fetch_users(force_refresh=False):
     try:
         # Run GAM command to get all users
         # Using 'gam print users' which outputs CSV format
+        gam_cmd = _get_gam_command()
         result = subprocess.run(
-            ['gam', 'print', 'users'],
+            [gam_cmd, 'print', 'users'],
             capture_output=True,
             text=True,
             timeout=60
@@ -98,8 +111,9 @@ def fetch_groups(force_refresh=False):
     try:
         # Run GAM command to get all groups
         # Using 'gam print groups' which outputs CSV format
+        gam_cmd = _get_gam_command()
         result = subprocess.run(
-            ['gam', 'print', 'groups'],
+            [gam_cmd, 'print', 'groups'],
             capture_output=True,
             text=True,
             timeout=60
@@ -180,8 +194,9 @@ def fetch_group_members(group_email):
     """
     try:
         # Run GAM command to get group members
+        gam_cmd = _get_gam_command()
         result = subprocess.run(
-            ['gam', 'print', 'group-members', 'group', group_email],
+            [gam_cmd, 'print', 'group-members', 'group', group_email],
             capture_output=True,
             text=True,
             timeout=30

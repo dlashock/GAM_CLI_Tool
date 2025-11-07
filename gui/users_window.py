@@ -60,19 +60,83 @@ class UsersWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Create new user accounts. Use CSV for bulk creation.",
+            text="Create new user accounts. Choose single user or CSV for bulk creation.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
+        # Mode selection
+        mode_frame = ttk.Frame(tab)
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.create_users_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single User",
+            variable=self.create_users_mode,
+            value="single",
+            command=self.toggle_create_users_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.create_users_mode,
+            value="csv",
+            command=self.toggle_create_users_mode
+        ).pack(side=tk.LEFT)
+
+        # Single user input frame
+        self.create_users_single_frame = ttk.LabelFrame(tab, text="User Details", padding="10")
+        self.create_users_single_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Email (required)
+        ttk.Label(self.create_users_single_frame, text="Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_user_email = ttk.Entry(self.create_users_single_frame, width=40)
+        self.create_user_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        # First Name (required)
+        ttk.Label(self.create_users_single_frame, text="First Name*:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_user_firstname = ttk.Entry(self.create_users_single_frame, width=40)
+        self.create_user_firstname.grid(row=1, column=1, sticky=tk.EW, pady=5)
+
+        # Last Name (required)
+        ttk.Label(self.create_users_single_frame, text="Last Name*:").grid(row=2, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_user_lastname = ttk.Entry(self.create_users_single_frame, width=40)
+        self.create_user_lastname.grid(row=2, column=1, sticky=tk.EW, pady=5)
+
+        # Password (required)
+        ttk.Label(self.create_users_single_frame, text="Password*:").grid(row=3, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_user_password = ttk.Entry(self.create_users_single_frame, width=40, show="*")
+        self.create_user_password.grid(row=3, column=1, sticky=tk.EW, pady=5)
+
+        # Org Unit (optional)
+        ttk.Label(self.create_users_single_frame, text="Org Unit:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_user_orgunit = ttk.Entry(self.create_users_single_frame, width=40)
+        self.create_user_orgunit.insert(0, "/")
+        self.create_user_orgunit.grid(row=4, column=1, sticky=tk.EW, pady=5)
+
+        # Title (optional)
+        ttk.Label(self.create_users_single_frame, text="Title:").grid(row=5, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_user_title = ttk.Entry(self.create_users_single_frame, width=40)
+        self.create_user_title.grid(row=5, column=1, sticky=tk.EW, pady=5)
+
+        # Phone (optional)
+        ttk.Label(self.create_users_single_frame, text="Phone:").grid(row=6, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_user_phone = ttk.Entry(self.create_users_single_frame, width=40)
+        self.create_user_phone.grid(row=6, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.create_users_single_frame, text="* Required fields", font=('Arial', 8), foreground='gray').grid(row=7, column=1, sticky=tk.W, pady=(5, 0))
+
+        self.create_users_single_frame.grid_columnconfigure(1, weight=1)
+
         # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        self.create_users_csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
+        self.create_users_csv_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(csv_frame, text="CSV Format: email,firstName,lastName,password,orgUnit,title,phone").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="Required: email, firstName, lastName, password. Optional: orgUnit (default /), title, phone").pack(anchor=tk.W, pady=(5, 10))
+        ttk.Label(self.create_users_csv_frame, text="CSV Format: email,firstName,lastName,password,orgUnit,title,phone").pack(anchor=tk.W)
+        ttk.Label(self.create_users_csv_frame, text="Required: email, firstName, lastName, password. Optional: orgUnit (default /), title, phone").pack(anchor=tk.W, pady=(5, 10))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        csv_input_frame = ttk.Frame(self.create_users_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.create_users_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -94,7 +158,7 @@ class UsersWindow(BaseOperationWindow):
 
         ttk.Button(
             btn_frame,
-            text="Create Users",
+            text="Create User(s)",
             command=self.execute_create_users,
             style='Accent.TButton'
         ).pack(side=tk.LEFT, padx=(0, 5))
@@ -106,6 +170,18 @@ class UsersWindow(BaseOperationWindow):
             text="Dry Run (preview only)",
             variable=self.create_users_dry_run
         ).pack(side=tk.LEFT)
+
+        # Initial toggle
+        self.toggle_create_users_mode()
+
+    def toggle_create_users_mode(self):
+        """Toggle between single and CSV mode for create users."""
+        if self.create_users_mode.get() == "single":
+            self.create_users_single_frame.pack(fill=tk.X, pady=(0, 10))
+            self.create_users_csv_frame.pack_forget()
+        else:
+            self.create_users_single_frame.pack_forget()
+            self.create_users_csv_frame.pack(fill=tk.X, pady=(0, 10))
 
     def browse_csv_for_create_users(self):
         """Browse for CSV file for create users."""
@@ -119,44 +195,84 @@ class UsersWindow(BaseOperationWindow):
 
     def execute_create_users(self):
         """Execute create users operation."""
-        csv_file = self.create_users_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
+        mode = self.create_users_mode.get()
 
-        # Read CSV
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                users_data = list(reader)
-
-            if not users_data:
-                messagebox.showerror("Error", "CSV file is empty.")
-                return
+        if mode == "single":
+            # Single user mode
+            email = self.create_user_email.get().strip()
+            firstname = self.create_user_firstname.get().strip()
+            lastname = self.create_user_lastname.get().strip()
+            password = self.create_user_password.get().strip()
+            orgunit = self.create_user_orgunit.get().strip() or "/"
+            title = self.create_user_title.get().strip()
+            phone = self.create_user_phone.get().strip()
 
             # Validate required fields
-            required = ['email', 'firstName', 'lastName', 'password']
-            for user_data in users_data:
-                for field in required:
-                    if field not in user_data or not user_data[field]:
-                        messagebox.showerror("Validation Error", f"Missing required field '{field}' in CSV.")
-                        return
-
-            # Confirm
-            if not self.confirm_bulk_operation(len(users_data), "create users"):
+            if not email:
+                messagebox.showerror("Validation Error", "Email is required.")
+                return
+            if not firstname:
+                messagebox.showerror("Validation Error", "First Name is required.")
+                return
+            if not lastname:
+                messagebox.showerror("Validation Error", "Last Name is required.")
+                return
+            if not password:
+                messagebox.showerror("Validation Error", "Password is required.")
                 return
 
-            # Execute
-            dry_run = self.create_users_dry_run.get()
-            self.run_operation(
-                users_module.create_user,
-                self.create_users_progress,
-                users_data,
-                dry_run=dry_run
-            )
+            # Create user data dict
+            users_data = [{
+                'email': email,
+                'firstName': firstname,
+                'lastName': lastname,
+                'password': password,
+                'orgUnit': orgunit,
+                'title': title,
+                'phone': phone
+            }]
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        else:
+            # CSV mode
+            csv_file = self.create_users_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            # Read CSV
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    users_data = list(reader)
+
+                if not users_data:
+                    messagebox.showerror("Error", "CSV file is empty.")
+                    return
+
+                # Validate required fields
+                required = ['email', 'firstName', 'lastName', 'password']
+                for user_data in users_data:
+                    for field in required:
+                        if field not in user_data or not user_data[field]:
+                            messagebox.showerror("Validation Error", f"Missing required field '{field}' in CSV.")
+                            return
+
+                # Confirm bulk operation
+                if not self.confirm_bulk_operation(len(users_data), "create users"):
+                    return
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
+
+        # Execute
+        dry_run = self.create_users_dry_run.get()
+        self.run_operation(
+            users_module.create_user,
+            self.create_users_progress,
+            users_data,
+            dry_run=dry_run
+        )
 
     # ==================== TAB 2: DELETE USERS ====================
 
