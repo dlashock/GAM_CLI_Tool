@@ -620,19 +620,74 @@ class UsersWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Update user information (name, title, phone, etc.). Use CSV for bulk updates.",
+            text="Update user information. Choose single user or CSV for bulk updates.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
+        # Mode selection
+        mode_frame = ttk.Frame(tab)
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.update_info_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single User",
+            variable=self.update_info_mode,
+            value="single",
+            command=self.toggle_update_info_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.update_info_mode,
+            value="csv",
+            command=self.toggle_update_info_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific content
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single user input frame
+        self.update_info_single_frame = ttk.LabelFrame(mode_container, text="Update User Details", padding="10")
+
+        ttk.Label(self.update_info_single_frame, text="User Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_email = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="First Name:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_firstname = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_firstname.grid(row=1, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Last Name:").grid(row=2, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_lastname = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_lastname.grid(row=2, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Title:").grid(row=3, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_title = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_title.grid(row=3, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Phone:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_phone = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_phone.grid(row=4, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Address:").grid(row=5, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_address = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_address.grid(row=5, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="* Required. Leave other fields blank to keep unchanged.",
+                 font=('Arial', 8), foreground='gray').grid(row=6, column=1, sticky=tk.W, pady=(5, 0))
+
+        self.update_info_single_frame.grid_columnconfigure(1, weight=1)
+
         # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        self.update_info_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
-        ttk.Label(csv_frame, text="CSV Format: email,firstName,lastName,title,phone,address").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="Required: email. Optional: firstName, lastName, title, phone, address (include only fields to update)").pack(anchor=tk.W, pady=(5, 10))
+        ttk.Label(self.update_info_csv_frame, text="CSV Format: email,firstName,lastName,title,phone,address").pack(anchor=tk.W)
+        ttk.Label(self.update_info_csv_frame, text="Required: email. Optional: firstName, lastName, title, phone, address").pack(anchor=tk.W, pady=(5, 10))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        csv_input_frame = ttk.Frame(self.update_info_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.update_info_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -667,6 +722,18 @@ class UsersWindow(BaseOperationWindow):
             variable=self.update_info_dry_run
         ).pack(side=tk.LEFT)
 
+        # Initial toggle
+        self.toggle_update_info_mode()
+
+    def toggle_update_info_mode(self):
+        """Toggle between single and CSV mode for update info."""
+        if self.update_info_mode.get() == "single":
+            self.update_info_csv_frame.pack_forget()
+            self.update_info_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.update_info_single_frame.pack_forget()
+            self.update_info_csv_frame.pack(fill=tk.X, expand=True)
+
     def browse_csv_for_update_info(self):
         """Browse for CSV file for update info."""
         file_path = filedialog.askopenfilename(
@@ -679,42 +746,80 @@ class UsersWindow(BaseOperationWindow):
 
     def execute_update_info(self):
         """Execute update user info operation."""
-        csv_file = self.update_info_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
+        mode = self.update_info_mode.get()
 
-        # Read CSV
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                users_data = list(reader)
+        if mode == "single":
+            # Single user mode
+            email = self.update_info_email.get().strip()
 
-            if not users_data:
-                messagebox.showerror("Error", "CSV file is empty.")
+            if not email:
+                messagebox.showerror("Validation Error", "User email is required.")
                 return
 
-            # Validate email field
-            for user_data in users_data:
-                if 'email' not in user_data or not user_data['email']:
-                    messagebox.showerror("Validation Error", "Missing 'email' field in CSV.")
+            # Build user data dict with only non-empty fields
+            user_data = {'email': email}
+
+            firstname = self.update_info_firstname.get().strip()
+            if firstname:
+                user_data['firstName'] = firstname
+
+            lastname = self.update_info_lastname.get().strip()
+            if lastname:
+                user_data['lastName'] = lastname
+
+            title = self.update_info_title.get().strip()
+            if title:
+                user_data['title'] = title
+
+            phone = self.update_info_phone.get().strip()
+            if phone:
+                user_data['phone'] = phone
+
+            address = self.update_info_address.get().strip()
+            if address:
+                user_data['address'] = address
+
+            users_data = [user_data]
+
+        else:
+            # CSV mode
+            csv_file = self.update_info_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            # Read CSV
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    users_data = list(reader)
+
+                if not users_data:
+                    messagebox.showerror("Error", "CSV file is empty.")
                     return
 
-            # Confirm
-            if not self.confirm_bulk_operation(len(users_data), "update user info"):
+                # Validate email field
+                for user_data in users_data:
+                    if 'email' not in user_data or not user_data['email']:
+                        messagebox.showerror("Validation Error", "Missing 'email' field in CSV.")
+                        return
+
+                # Confirm
+                if not self.confirm_bulk_operation(len(users_data), "update user info"):
+                    return
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
                 return
 
-            # Execute
-            dry_run = self.update_info_dry_run.get()
-            self.run_operation(
-                users_module.update_user_info,
-                self.update_info_progress,
-                users_data,
-                dry_run=dry_run
-            )
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        # Execute
+        dry_run = self.update_info_dry_run.get()
+        self.run_operation(
+            users_module.update_user_info,
+            self.update_info_progress,
+            users_data,
+            dry_run=dry_run
+        )
 
     # ==================== TAB 6: MANAGE ORGANIZATIONAL UNITS ====================
 
