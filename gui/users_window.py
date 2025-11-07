@@ -112,11 +112,21 @@ class UsersWindow(BaseOperationWindow):
         self.create_user_password = ttk.Entry(self.create_users_single_frame, width=40, show="*")
         self.create_user_password.grid(row=3, column=1, sticky=tk.EW, pady=5)
 
-        # Org Unit (optional)
+        # Org Unit (optional) - with dropdown
         ttk.Label(self.create_users_single_frame, text="Org Unit:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.create_user_orgunit = ttk.Entry(self.create_users_single_frame, width=40)
-        self.create_user_orgunit.insert(0, "/")
-        self.create_user_orgunit.grid(row=4, column=1, sticky=tk.EW, pady=5)
+
+        orgunit_frame = ttk.Frame(self.create_users_single_frame)
+        orgunit_frame.grid(row=4, column=1, sticky=tk.EW, pady=5)
+
+        self.create_user_orgunit = ttk.Combobox(orgunit_frame, values=["/"])
+        self.create_user_orgunit.set("/")
+        self.create_user_orgunit.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            orgunit_frame,
+            text="Load OUs",
+            command=self.load_org_units_for_create_user
+        ).pack(side=tk.LEFT)
 
         # Title (optional)
         ttk.Label(self.create_users_single_frame, text="Title:").grid(row=5, column=0, sticky=tk.W, pady=5, padx=(0, 5))
@@ -184,6 +194,28 @@ class UsersWindow(BaseOperationWindow):
         else:
             self.create_users_single_frame.pack_forget()
             self.create_users_csv_frame.pack(fill=tk.X, expand=True)
+
+    def load_org_units_for_create_user(self):
+        """Load organizational units into combobox for create user."""
+        # Set loading indicator
+        self.create_user_orgunit['values'] = ["Loading..."]
+        self.create_user_orgunit.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_org_units
+            orgs = fetch_org_units()
+            if orgs:
+                # Update combobox in main thread
+                self.after(0, lambda: self.create_user_orgunit.configure(values=sorted(orgs)))
+                self.after(0, lambda: self.create_user_orgunit.set("/"))
+            else:
+                # Fallback to root if no OUs found
+                self.after(0, lambda: self.create_user_orgunit.configure(values=["/", "No OUs found"]))
+                self.after(0, lambda: self.create_user_orgunit.set("/"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
 
     def browse_csv_for_create_users(self):
         """Browse for CSV file for create users."""

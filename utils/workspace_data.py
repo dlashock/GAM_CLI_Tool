@@ -23,9 +23,10 @@ def _get_gam_command():
     return gam_path if gam_path else 'gam'
 
 
-# Session cache for users and groups
+# Session cache for users, groups, and org units
 _users_cache = None
 _groups_cache = None
+_orgs_cache = None
 
 
 def fetch_users(force_refresh=False):
@@ -156,15 +157,84 @@ def fetch_groups(force_refresh=False):
         return []
 
 
+def fetch_org_units(force_refresh=False):
+    """
+    Fetch all organizational units from Google Workspace.
+
+    Args:
+        force_refresh (bool): If True, bypass cache and fetch fresh data
+
+    Returns:
+        list: List of org unit paths, or empty list on error
+    """
+    global _orgs_cache
+
+    # Return cached data if available and not forcing refresh
+    if _orgs_cache is not None and not force_refresh:
+        return _orgs_cache
+
+    try:
+        # Run GAM command to get all organizational units
+        # Using 'gam print orgs' which outputs CSV format
+        gam_cmd = _get_gam_command()
+        result = subprocess.run(
+            [gam_cmd, 'print', 'orgs'],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if result.returncode != 0:
+            error_msg = f"GAM command failed: {result.stderr[:200]}"
+            log_error("Fetch Org Units", error_msg)
+            return []
+
+        # Parse CSV output
+        output = result.stdout
+        if not output.strip():
+            log_error("Fetch Org Units", "GAM returned empty output")
+            return []
+
+        # Parse CSV - GAM typically returns orgUnitPath as one of the columns
+        orgs = []
+        csv_reader = csv.DictReader(StringIO(output))
+
+        for row in csv_reader:
+            # Try common field names for org unit path
+            org_path = row.get('orgUnitPath') or row.get('Path') or row.get('path')
+            if org_path:
+                orgs.append(org_path.strip())
+
+        # Always include root org unit
+        if '/' not in orgs:
+            orgs.insert(0, '/')
+
+        # Cache the results
+        _orgs_cache = orgs
+
+        return orgs
+
+    except subprocess.TimeoutExpired:
+        log_error("Fetch Org Units", "Command timed out after 60 seconds")
+        return []
+    except FileNotFoundError:
+        log_error("Fetch Org Units", "GAM command not found")
+        return []
+    except Exception as e:
+        log_error("Fetch Org Units", f"Unexpected error: {str(e)}")
+        return []
+
+
 def clear_cache():
     """
-    Clear the cached user and group data.
+    Clear the cached user, group, and org unit data.
 
     Use this if you need to force a refresh of workspace data.
     """
-    global _users_cache, _groups_cache
+    global _users_cache, _groups_cache, _orgs_cache
     _users_cache = None
     _groups_cache = None
+    _orgs_cache = None
 
 
 def get_cache_status():
@@ -177,8 +247,10 @@ def get_cache_status():
     return {
         'users_cached': _users_cache is not None,
         'groups_cached': _groups_cache is not None,
+        'orgs_cached': _orgs_cache is not None,
         'users_count': len(_users_cache) if _users_cache else 0,
-        'groups_count': len(_groups_cache) if _groups_cache else 0
+        'groups_count': len(_groups_cache) if _groups_cache else 0,
+        'orgs_count': len(_orgs_cache) if _orgs_cache else 0
     }
 
 
