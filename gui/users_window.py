@@ -940,7 +940,7 @@ class UsersWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Add or remove email aliases. Use CSV for bulk alias management.",
+            text="Add or remove email aliases. Choose single entry or CSV for bulk operations.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
@@ -964,14 +964,52 @@ class UsersWindow(BaseOperationWindow):
             value="remove"
         ).pack(side=tk.LEFT)
 
+        # Mode selection
+        mode_frame = ttk.Frame(tab)
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.manage_aliases_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single Entry",
+            variable=self.manage_aliases_mode,
+            value="single",
+            command=self.toggle_manage_aliases_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.manage_aliases_mode,
+            value="csv",
+            command=self.toggle_manage_aliases_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific content
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single entry frame
+        self.manage_aliases_single_frame = ttk.LabelFrame(mode_container, text="Alias Details", padding="10")
+
+        ttk.Label(self.manage_aliases_single_frame, text="User Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.manage_aliases_email = ttk.Entry(self.manage_aliases_single_frame, width=40)
+        self.manage_aliases_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.manage_aliases_single_frame, text="Alias*:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.manage_aliases_alias = ttk.Entry(self.manage_aliases_single_frame, width=40)
+        self.manage_aliases_alias.grid(row=1, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.manage_aliases_single_frame, text="* Required fields", font=('Arial', 8), foreground='gray').grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
+
+        self.manage_aliases_single_frame.grid_columnconfigure(1, weight=1)
+
         # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        self.manage_aliases_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
-        ttk.Label(csv_frame, text="For Add: email,alias (where email is primary, alias is the new alias to add)").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="For Remove: Just list one alias per line (header: alias)").pack(anchor=tk.W, pady=(5, 10))
+        ttk.Label(self.manage_aliases_csv_frame, text="For Add: email,alias").pack(anchor=tk.W)
+        ttk.Label(self.manage_aliases_csv_frame, text="For Remove: alias (one per line)").pack(anchor=tk.W, pady=(5, 10))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        csv_input_frame = ttk.Frame(self.manage_aliases_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.manage_aliases_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -1006,6 +1044,18 @@ class UsersWindow(BaseOperationWindow):
             variable=self.manage_aliases_dry_run
         ).pack(side=tk.LEFT)
 
+        # Initial toggle
+        self.toggle_manage_aliases_mode()
+
+    def toggle_manage_aliases_mode(self):
+        """Toggle between single and CSV mode for manage aliases."""
+        if self.manage_aliases_mode.get() == "single":
+            self.manage_aliases_csv_frame.pack_forget()
+            self.manage_aliases_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.manage_aliases_single_frame.pack_forget()
+            self.manage_aliases_csv_frame.pack(fill=tk.X, expand=True)
+
     def browse_csv_for_manage_aliases(self):
         """Browse for CSV file for manage aliases."""
         file_path = filedialog.askopenfilename(
@@ -1018,64 +1068,85 @@ class UsersWindow(BaseOperationWindow):
 
     def execute_manage_aliases(self):
         """Execute manage aliases operation."""
-        csv_file = self.manage_aliases_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
-
+        mode = self.manage_aliases_mode.get()
         action = self.manage_aliases_action.get()
         dry_run = self.manage_aliases_dry_run.get()
 
-        # Read CSV
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                data = list(reader)
+        if mode == "single":
+            # Single entry mode
+            if action == 'add':
+                email = self.manage_aliases_email.get().strip()
+                alias = self.manage_aliases_alias.get().strip()
 
-            if not data:
-                messagebox.showerror("Error", "CSV file is empty.")
+                if not email:
+                    messagebox.showerror("Validation Error", "User email is required.")
+                    return
+                if not alias:
+                    messagebox.showerror("Validation Error", "Alias is required.")
+                    return
+
+                data = [{'email': email, 'alias': alias}]
+            else:  # remove
+                alias = self.manage_aliases_alias.get().strip()
+                if not alias:
+                    messagebox.showerror("Validation Error", "Alias is required.")
+                    return
+
+                data = [{'alias': alias}]
+
+        else:
+            # CSV mode
+            csv_file = self.manage_aliases_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
                 return
 
-            if action == 'add':
-                # Validate add format
-                for row in data:
-                    if 'email' not in row or not row['email']:
-                        messagebox.showerror("Validation Error", "Missing 'email' field in CSV for add action.")
-                        return
-                    if 'alias' not in row or not row['alias']:
-                        messagebox.showerror("Validation Error", "Missing 'alias' field in CSV for add action.")
-                        return
+            # Read CSV
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    data = list(reader)
+
+                if not data:
+                    messagebox.showerror("Error", "CSV file is empty.")
+                    return
+
+                if action == 'add':
+                    # Validate add format
+                    for row in data:
+                        if 'email' not in row or not row['email']:
+                            messagebox.showerror("Validation Error", "Missing 'email' field in CSV for add action.")
+                            return
+                        if 'alias' not in row or not row['alias']:
+                            messagebox.showerror("Validation Error", "Missing 'alias' field in CSV for add action.")
+                            return
+                else:
+                    # Validate remove format
+                    for row in data:
+                        if 'alias' not in row or not row['alias']:
+                            messagebox.showerror("Validation Error", "Missing 'alias' field in CSV for remove action.")
+                            return
 
                 # Confirm
-                if not self.confirm_bulk_operation(len(data), "add aliases"):
+                if not self.confirm_bulk_operation(len(data), f"{action} aliases"):
                     return
 
-                # Execute
-                self.run_operation(
-                    users_module.add_alias,
-                    self.manage_aliases_progress,
-                    data,
-                    dry_run=dry_run
-                )
-            else:
-                # Remove - just need list of aliases
-                if 'alias' not in data[0]:
-                    messagebox.showerror("Validation Error", "Missing 'alias' field in CSV for remove action.")
-                    return
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
 
-                aliases = [row['alias'] for row in data if row.get('alias')]
-
-                # Confirm
-                if not self.confirm_bulk_operation(len(aliases), "remove aliases"):
-                    return
-
-                # Execute
-                self.run_operation(
-                    users_module.remove_alias,
-                    self.manage_aliases_progress,
-                    aliases,
-                    dry_run=dry_run
-                )
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        # Execute
+        if action == 'add':
+            self.run_operation(
+                users_module.add_alias,
+                self.manage_aliases_progress,
+                data,
+                dry_run=dry_run
+            )
+        else:  # remove
+            self.run_operation(
+                users_module.remove_alias,
+                self.manage_aliases_progress,
+                data,
+                dry_run=dry_run
+            )
