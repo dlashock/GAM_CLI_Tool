@@ -58,19 +58,62 @@ class GroupsWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Create new groups. Use CSV for bulk creation.",
+            text="Create new groups. Choose single group or CSV for bulk creation.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
+        # Mode selection
+        mode_frame = ttk.Frame(tab)
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.create_groups_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single Group",
+            variable=self.create_groups_mode,
+            value="single",
+            command=self.toggle_create_groups_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.create_groups_mode,
+            value="csv",
+            command=self.toggle_create_groups_mode
+        ).pack(side=tk.LEFT)
+
+        # Single group input frame
+        self.create_groups_single_frame = ttk.LabelFrame(tab, text="Group Details", padding="10")
+        self.create_groups_single_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Email (required)
+        ttk.Label(self.create_groups_single_frame, text="Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_group_email = ttk.Entry(self.create_groups_single_frame, width=40)
+        self.create_group_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        # Name (required)
+        ttk.Label(self.create_groups_single_frame, text="Name*:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_group_name = ttk.Entry(self.create_groups_single_frame, width=40)
+        self.create_group_name.grid(row=1, column=1, sticky=tk.EW, pady=5)
+
+        # Description (optional)
+        ttk.Label(self.create_groups_single_frame, text="Description:").grid(row=2, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.create_group_description = ttk.Entry(self.create_groups_single_frame, width=40)
+        self.create_group_description.grid(row=2, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.create_groups_single_frame, text="* Required fields", font=('Arial', 8), foreground='gray').grid(row=3, column=1, sticky=tk.W, pady=(5, 0))
+
+        self.create_groups_single_frame.grid_columnconfigure(1, weight=1)
+
         # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        self.create_groups_csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
+        self.create_groups_csv_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(csv_frame, text="CSV Format: email,name,description").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="Required: email, name. Optional: description").pack(anchor=tk.W, pady=(5, 10))
+        ttk.Label(self.create_groups_csv_frame, text="CSV Format: email,name,description").pack(anchor=tk.W)
+        ttk.Label(self.create_groups_csv_frame, text="Required: email, name. Optional: description").pack(anchor=tk.W, pady=(5, 10))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        csv_input_frame = ttk.Frame(self.create_groups_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.create_groups_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -92,7 +135,7 @@ class GroupsWindow(BaseOperationWindow):
 
         ttk.Button(
             btn_frame,
-            text="Create Groups",
+            text="Create Group(s)",
             command=self.execute_create_groups,
             style='Accent.TButton'
         ).pack(side=tk.LEFT, padx=(0, 5))
@@ -105,44 +148,83 @@ class GroupsWindow(BaseOperationWindow):
             variable=self.create_groups_dry_run
         ).pack(side=tk.LEFT)
 
+        # Initial toggle
+        self.toggle_create_groups_mode()
+
+    def toggle_create_groups_mode(self):
+        """Toggle between single and CSV mode for create groups."""
+        if self.create_groups_mode.get() == "single":
+            self.create_groups_single_frame.pack(fill=tk.X, pady=(0, 10))
+            self.create_groups_csv_frame.pack_forget()
+        else:
+            self.create_groups_single_frame.pack_forget()
+            self.create_groups_csv_frame.pack(fill=tk.X, pady=(0, 10))
+
     def execute_create_groups(self):
         """Execute create groups operation."""
-        csv_file = self.create_groups_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
+        mode = self.create_groups_mode.get()
 
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                groups_data = list(reader)
-
-            if not groups_data:
-                messagebox.showerror("Error", "CSV file is empty.")
-                return
+        if mode == "single":
+            # Single group mode
+            email = self.create_group_email.get().strip()
+            name = self.create_group_name.get().strip()
+            description = self.create_group_description.get().strip()
 
             # Validate required fields
-            for group_data in groups_data:
-                if 'email' not in group_data or not group_data['email']:
-                    messagebox.showerror("Validation Error", "Missing 'email' field in CSV.")
-                    return
-                if 'name' not in group_data or not group_data['name']:
-                    messagebox.showerror("Validation Error", "Missing 'name' field in CSV.")
-                    return
-
-            if not self.confirm_bulk_operation(len(groups_data), "create groups"):
+            if not email:
+                messagebox.showerror("Validation Error", "Email is required.")
+                return
+            if not name:
+                messagebox.showerror("Validation Error", "Name is required.")
                 return
 
-            dry_run = self.create_groups_dry_run.get()
-            self.run_operation(
-                groups_module.create_group,
-                self.create_groups_progress,
-                groups_data,
-                dry_run=dry_run
-            )
+            # Create group data dict
+            groups_data = [{
+                'email': email,
+                'name': name,
+                'description': description
+            }]
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        else:
+            # CSV mode
+            csv_file = self.create_groups_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    groups_data = list(reader)
+
+                if not groups_data:
+                    messagebox.showerror("Error", "CSV file is empty.")
+                    return
+
+                # Validate required fields
+                for group_data in groups_data:
+                    if 'email' not in group_data or not group_data['email']:
+                        messagebox.showerror("Validation Error", "Missing 'email' field in CSV.")
+                        return
+                    if 'name' not in group_data or not group_data['name']:
+                        messagebox.showerror("Validation Error", "Missing 'name' field in CSV.")
+                        return
+
+                if not self.confirm_bulk_operation(len(groups_data), "create groups"):
+                    return
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
+
+        # Execute
+        dry_run = self.create_groups_dry_run.get()
+        self.run_operation(
+            groups_module.create_group,
+            self.create_groups_progress,
+            groups_data,
+            dry_run=dry_run
+        )
 
     # ==================== TAB 2: DELETE GROUPS ====================
 
