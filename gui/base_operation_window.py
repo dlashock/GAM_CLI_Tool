@@ -917,7 +917,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
     # ==================== OPERATION EXECUTION ====================
 
-    def run_operation(self, operation_func, progress_frame, *args, dry_run=False):
+    def run_operation(self, operation_func, progress_frame, *args, dry_run=False, on_success=None):
         """
         Run an operation in a background thread.
 
@@ -926,6 +926,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             progress_frame: The progress frame for this operation
             *args: Arguments to pass to operation_func
             dry_run: If True, preview operation without executing
+            on_success: Optional callback function to call on successful completion
         """
         if self.operation_running:
             messagebox.showwarning("Operation Running", "An operation is already in progress.")
@@ -976,15 +977,16 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         self.current_thread.start()
 
         # Start checking queue
-        self.check_operation_queue(progress_frame, result_queue)
+        self.check_operation_queue(progress_frame, result_queue, on_success)
 
-    def check_operation_queue(self, progress_frame, result_queue):
+    def check_operation_queue(self, progress_frame, result_queue, on_success=None):
         """
         Check queue for operation updates.
 
         Args:
             progress_frame: The progress frame
             result_queue: Queue for thread communication
+            on_success: Optional callback to call on successful completion
         """
         try:
             msg_type, msg_data = result_queue.get_nowait()
@@ -999,7 +1001,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                     progress_frame.results_text.config(state=tk.DISABLED)
 
                 # Continue checking
-                self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue))
+                self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue, on_success))
 
             elif msg_type == 'done':
                 # Operation complete
@@ -1009,6 +1011,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                 progress_frame.results_text.insert(tk.END, "Operation completed!\n")
                 progress_frame.results_text.config(state=tk.DISABLED)
                 self.operation_running = False
+
+                # Call success callback if provided
+                if on_success:
+                    on_success()
 
             elif msg_type == 'cancelled':
                 # Operation cancelled
@@ -1030,7 +1036,20 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
         except queue.Empty:
             # No message yet, check again soon
-            self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue))
+            self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue, on_success))
+
+    def clear_fields(self, *widgets):
+        """
+        Clear the content of specified widgets (Entry or Combobox).
+
+        Args:
+            *widgets: Variable number of widget objects to clear
+        """
+        for widget in widgets:
+            if hasattr(widget, 'delete'):  # Entry widgets
+                widget.delete(0, tk.END)
+            elif hasattr(widget, 'set'):  # Combobox or other widgets with set method
+                widget.set("")
 
     def cancel_operation(self):
         """Cancel the currently running operation."""
