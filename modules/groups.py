@@ -441,6 +441,7 @@ def update_group_settings(settings_data, dry_run=False):
                              - whoCanPostMessage (optional)
                              - whoCanViewGroup (optional)
                              - whoCanJoin (optional)
+                             - allowExternalMembers (optional)
         dry_run (bool): If True, preview without executing
 
     Yields:
@@ -478,6 +479,9 @@ def update_group_settings(settings_data, dry_run=False):
                 settings_added = True
             if 'whoCanJoin' in data and data['whoCanJoin']:
                 cmd.extend(['who_can_join', data['whoCanJoin']])
+                settings_added = True
+            if 'allowExternalMembers' in data and data['allowExternalMembers']:
+                cmd.extend(['allow_external_members', data['allowExternalMembers']])
                 settings_added = True
 
             if not settings_added:
