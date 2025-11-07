@@ -84,14 +84,24 @@ class EmailWindow(BaseOperationWindow):
 
         params_frame.grid_columnconfigure(1, weight=1)
 
-        # Execute button
-        execute_btn = ttk.Button(
-            params_frame,
+        # Execute button and dry-run checkbox
+        btn_frame = ttk.Frame(params_frame)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=(10, 0))
+
+        ttk.Button(
+            btn_frame,
             text="Execute Delete",
             command=lambda: self.execute_delete_messages(),
             width=20
-        )
-        execute_btn.grid(row=4, column=0, columnspan=2, pady=(10, 0))
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        # Dry run checkbox
+        self.delete_messages_dry_run = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            btn_frame,
+            text="Dry Run (preview only)",
+            variable=self.delete_messages_dry_run
+        ).pack(side=tk.LEFT)
 
         # Progress and results
         self.delete_progress_frame = self.create_progress_frame(tab)
@@ -127,7 +137,8 @@ class EmailWindow(BaseOperationWindow):
             return
 
         # Confirmation for multiple users
-        if len(users) > 1:
+        dry_run = self.delete_messages_dry_run.get()
+        if len(users) > 1 and not dry_run:
             if not messagebox.askyesno(
                 "Confirm Operation",
                 f"You are about to delete messages for {len(users)} users.\n\nProceed?"
@@ -138,7 +149,8 @@ class EmailWindow(BaseOperationWindow):
         self.run_operation(
             email_module.delete_messages,
             self.delete_progress_frame,
-            users, query, date_from, date_to
+            users, query, date_from, date_to,
+            dry_run=dry_run
         )
 
     # ==================== TAB 2: MANAGE DELEGATES ====================
@@ -148,8 +160,8 @@ class EmailWindow(BaseOperationWindow):
         tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Delegates")
 
-        # Target selection
-        target_frame = self.create_target_selection_frame(tab, "delegates")
+        # Target selection (simplified - no "All Users" or "Group")
+        target_frame = self.create_single_user_target_selection_frame(tab, "delegates")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -385,8 +397,8 @@ class EmailWindow(BaseOperationWindow):
         tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Forwarding")
 
-        # Target selection
-        target_frame = self.create_target_selection_frame(tab, "forwarding")
+        # Target selection (simplified - no "All Users" or "Group")
+        target_frame = self.create_single_user_target_selection_frame(tab, "forwarding")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters

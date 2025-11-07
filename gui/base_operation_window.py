@@ -122,6 +122,219 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
     # ==================== TARGET SELECTION FRAMEWORK ====================
 
+    def create_single_user_target_selection_frame(self, parent, tab_id):
+        """
+        Create simplified target selection frame for operations that should not
+        target all users or groups (e.g., Delete, Suspend, dangerous operations).
+
+        Args:
+            parent: Parent widget
+            tab_id: Unique identifier for this tab
+
+        Returns:
+            ttk.LabelFrame: The target selection frame
+        """
+        frame = ttk.LabelFrame(parent, text="Target Users", padding="10")
+
+        # Create variable for target type
+        target_var = tk.StringVar(value="single")
+        setattr(self, f"{tab_id}_target_var", target_var)
+
+        # Radio buttons for target type (simplified - no "All Users" or "Group")
+        options_frame = ttk.Frame(frame)
+        options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Single User",
+            variable=target_var,
+            value="single",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="CSV File",
+            variable=target_var,
+            value="csv",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Select from List",
+            variable=target_var,
+            value="list",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Input frame (changes based on selection)
+        input_frame = ttk.Frame(frame)
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        setattr(self, f"{tab_id}_input_frame", input_frame)
+
+        # Single user entry
+        entry_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_entry_frame", entry_frame)
+
+        ttk.Label(entry_frame, text="User Email:").pack(side=tk.LEFT, padx=(0, 5))
+        entry = ttk.Entry(entry_frame, width=40)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_entry", entry)
+
+        # CSV frame
+        csv_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_csv_frame", csv_frame)
+
+        csv_entry = ttk.Entry(csv_frame, width=50)
+        csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        setattr(self, f"{tab_id}_csv_entry", csv_entry)
+
+        ttk.Button(
+            csv_frame,
+            text="Browse",
+            command=lambda: self.browse_csv(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # List frame (for selecting users)
+        list_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_list_frame", list_frame)
+
+        ttk.Label(list_frame, text="Select users (Ctrl+Click for multiple):").pack(anchor=tk.W)
+
+        list_scroll_frame = ttk.Frame(list_frame)
+        list_scroll_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+
+        scrollbar = ttk.Scrollbar(list_scroll_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        listbox = tk.Listbox(list_scroll_frame, selectmode=tk.EXTENDED,
+                            yscrollcommand=scrollbar.set, height=8)
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=listbox.yview)
+        setattr(self, f"{tab_id}_listbox", listbox)
+
+        ttk.Button(
+            list_frame,
+            text="Load Users",
+            command=lambda: self.load_users_list(tab_id)
+        ).pack(pady=(5, 0))
+
+        # Show initial input (single user)
+        self.update_target_input(tab_id)
+
+        return frame
+
+    def create_group_target_selection_frame(self, parent, tab_id):
+        """
+        Create target selection frame for group operations (simplified).
+
+        Args:
+            parent: Parent widget
+            tab_id: Unique identifier for this tab
+
+        Returns:
+            ttk.LabelFrame: The target selection frame
+        """
+        frame = ttk.LabelFrame(parent, text="Target Groups", padding="10")
+
+        # Create variable for target type
+        target_var = tk.StringVar(value="single")
+        setattr(self, f"{tab_id}_target_var", target_var)
+
+        # Radio buttons for target type (simplified for groups)
+        options_frame = ttk.Frame(frame)
+        options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Single Group",
+            variable=target_var,
+            value="single",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="All Groups",
+            variable=target_var,
+            value="all",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="CSV File",
+            variable=target_var,
+            value="csv",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Select from List",
+            variable=target_var,
+            value="list",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Input frame (changes based on selection)
+        input_frame = ttk.Frame(frame)
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        setattr(self, f"{tab_id}_input_frame", input_frame)
+
+        # Single group entry
+        entry_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_entry_frame", entry_frame)
+
+        ttk.Label(entry_frame, text="Group Email:").pack(side=tk.LEFT, padx=(0, 5))
+        entry = ttk.Entry(entry_frame, width=40)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_entry", entry)
+
+        # CSV frame
+        csv_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_csv_frame", csv_frame)
+
+        csv_entry = ttk.Entry(csv_frame, width=50)
+        csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        setattr(self, f"{tab_id}_csv_entry", csv_entry)
+
+        ttk.Button(
+            csv_frame,
+            text="Browse",
+            command=lambda: self.browse_csv(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # List frame (for selecting groups)
+        list_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_list_frame", list_frame)
+
+        ttk.Label(list_frame, text="Select groups (Ctrl+Click for multiple):").pack(anchor=tk.W)
+
+        list_scroll_frame = ttk.Frame(list_frame)
+        list_scroll_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+
+        scrollbar = ttk.Scrollbar(list_scroll_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        listbox = tk.Listbox(list_scroll_frame, selectmode=tk.EXTENDED,
+                            yscrollcommand=scrollbar.set, height=8)
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=listbox.yview)
+        setattr(self, f"{tab_id}_listbox", listbox)
+
+        ttk.Button(
+            list_frame,
+            text="Load Groups",
+            command=lambda: self.load_groups_list(tab_id)
+        ).pack(pady=(5, 0))
+
+        # Show initial input (single group)
+        self.update_target_input(tab_id)
+
+        return frame
+
     def create_target_selection_frame(self, parent, tab_id):
         """
         Create target selection frame with all options.
@@ -323,6 +536,45 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         else:
             listbox.insert(tk.END, "(No users found or error fetching)")
 
+    def load_groups_list(self, tab_id):
+        """
+        Load groups into listbox for selection.
+
+        Args:
+            tab_id: Tab identifier
+        """
+        listbox = getattr(self, f"{tab_id}_listbox")
+        listbox.config(state=tk.NORMAL)
+        listbox.delete(0, tk.END)
+        listbox.insert(tk.END, "Loading groups...")
+        listbox.config(state=tk.DISABLED)
+        self.update_idletasks()
+
+        # Fetch groups in thread
+        def fetch_and_populate():
+            groups = fetch_groups()
+            self.after(0, lambda: self.populate_groups_listbox(tab_id, groups))
+
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def populate_groups_listbox(self, tab_id, groups):
+        """
+        Populate listbox with groups.
+
+        Args:
+            tab_id: Tab identifier
+            groups: List of group emails
+        """
+        listbox = getattr(self, f"{tab_id}_listbox")
+        listbox.config(state=tk.NORMAL)
+        listbox.delete(0, tk.END)
+
+        if groups:
+            for group in sorted(groups):
+                listbox.insert(tk.END, group)
+        else:
+            listbox.insert(tk.END, "(No groups found or error fetching)")
+
     def get_target_users(self, tab_id):
         """
         Get the list of target users based on selection.
@@ -396,6 +648,74 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                     return None
 
             return users
+
+        return None
+
+    def get_target_groups(self, tab_id):
+        """
+        Get the list of target groups based on selection.
+
+        Args:
+            tab_id: Tab identifier
+
+        Returns:
+            list: List of group email addresses, or None if validation fails
+        """
+        target_var = getattr(self, f"{tab_id}_target_var")
+        target = target_var.get()
+
+        if target == "single":
+            entry = getattr(self, f"{tab_id}_entry")
+            email = entry.get().strip()
+            if not email or '@' not in email:
+                messagebox.showerror("Validation Error", "Please enter a valid group email address.")
+                return None
+            return [email]
+
+        elif target == "all":
+            groups = fetch_groups()
+            if not groups:
+                messagebox.showerror("Error", "Failed to fetch groups or no groups found.")
+                return None
+
+            # Confirm bulk operation
+            if not self.confirm_bulk_operation(len(groups), "this operation"):
+                return None
+
+            return groups
+
+        elif target == "csv":
+            csv_entry = getattr(self, f"{tab_id}_csv_entry")
+            file_path = csv_entry.get().strip()
+            if not file_path:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return None
+
+            success, result = read_csv_emails(file_path)
+            if not success:
+                messagebox.showerror("CSV Error", result)
+                return None
+
+            # Confirm bulk operation
+            if not self.confirm_bulk_operation(len(result), "this operation"):
+                return None
+
+            return result
+
+        elif target == "list":
+            listbox = getattr(self, f"{tab_id}_listbox")
+            selection = listbox.curselection()
+            if not selection:
+                messagebox.showerror("Validation Error", "Please select at least one group from the list.")
+                return None
+            groups = [listbox.get(i) for i in selection]
+
+            # Confirm if many groups selected
+            if len(groups) > 50:
+                if not self.confirm_bulk_operation(len(groups), "this operation"):
+                    return None
+
+            return groups
 
         return None
 

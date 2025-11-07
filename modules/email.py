@@ -25,7 +25,7 @@ def _get_gam_command():
     return gam_path if gam_path else 'gam'
 
 
-def delete_messages(users, query, date_from=None, date_to=None):
+def delete_messages(users, query, date_from=None, date_to=None, dry_run=False):
     """
     Delete messages for users based on query string.
 
@@ -34,6 +34,7 @@ def delete_messages(users, query, date_from=None, date_to=None):
         query (str): Gmail search query (e.g., "from:sender@example.com")
         date_from (str, optional): Start date for query (YYYY/MM/DD format)
         date_to (str, optional): End date for query (YYYY/MM/DD format)
+        dry_run (bool): If True, simulate the operation without executing
 
     Yields:
         dict: Progress updates with keys: status, email, current, total
@@ -63,6 +64,16 @@ def delete_messages(users, query, date_from=None, date_to=None):
         }
 
         try:
+            # Dry run mode
+            if dry_run:
+                success_count += 1
+                yield {
+                    "status": "dry-run",
+                    "email": user_email,
+                    "message": f"[DRY RUN] Would delete messages for {user_email} matching query: {full_query}"
+                }
+                continue
+
             # Build GAM command
             cmd = [
                 _get_gam_command(), 'user', user_email,

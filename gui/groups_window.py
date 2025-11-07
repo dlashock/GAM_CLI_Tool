@@ -83,9 +83,12 @@ class GroupsWindow(BaseOperationWindow):
             command=self.toggle_create_groups_mode
         ).pack(side=tk.LEFT)
 
+        # Container for mode-specific content (keeps layout stable)
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
         # Single group input frame
-        self.create_groups_single_frame = ttk.LabelFrame(tab, text="Group Details", padding="10")
-        self.create_groups_single_frame.pack(fill=tk.X, pady=(0, 10))
+        self.create_groups_single_frame = ttk.LabelFrame(mode_container, text="Group Details", padding="10")
 
         # Email (required)
         ttk.Label(self.create_groups_single_frame, text="Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
@@ -107,8 +110,7 @@ class GroupsWindow(BaseOperationWindow):
         self.create_groups_single_frame.grid_columnconfigure(1, weight=1)
 
         # CSV selection frame
-        self.create_groups_csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        self.create_groups_csv_frame.pack(fill=tk.X, pady=(0, 10))
+        self.create_groups_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
         ttk.Label(self.create_groups_csv_frame, text="CSV Format: email,name,description").pack(anchor=tk.W)
         ttk.Label(self.create_groups_csv_frame, text="Required: email, name. Optional: description").pack(anchor=tk.W, pady=(5, 10))
@@ -154,11 +156,11 @@ class GroupsWindow(BaseOperationWindow):
     def toggle_create_groups_mode(self):
         """Toggle between single and CSV mode for create groups."""
         if self.create_groups_mode.get() == "single":
-            self.create_groups_single_frame.pack(fill=tk.X, pady=(0, 10))
             self.create_groups_csv_frame.pack_forget()
+            self.create_groups_single_frame.pack(fill=tk.X, expand=True)
         else:
             self.create_groups_single_frame.pack_forget()
-            self.create_groups_csv_frame.pack(fill=tk.X, pady=(0, 10))
+            self.create_groups_csv_frame.pack(fill=tk.X, expand=True)
 
     def execute_create_groups(self):
         """Execute create groups operation."""
@@ -242,8 +244,8 @@ class GroupsWindow(BaseOperationWindow):
         )
         warning.pack(pady=(0, 10), anchor=tk.W)
 
-        # Target selection
-        self.delete_groups_target = self.create_target_selection_frame(tab, 'delete_groups')
+        # Target selection (use group-specific selector)
+        self.delete_groups_target = self.create_group_target_selection_frame(tab, 'delete_groups')
         self.delete_groups_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
@@ -271,7 +273,7 @@ class GroupsWindow(BaseOperationWindow):
 
     def execute_delete_groups(self):
         """Execute delete groups operation."""
-        groups = self.get_target_users('delete_groups')  # Reuses target selection
+        groups = self.get_target_groups('delete_groups')
         if groups is None:
             return
 
@@ -301,7 +303,7 @@ class GroupsWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Add or remove members from groups. Use CSV for bulk operations.",
+            text="Add or remove members from groups. Choose single entry for individual operations or CSV for bulk operations.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
@@ -325,14 +327,68 @@ class GroupsWindow(BaseOperationWindow):
             value="remove"
         ).pack(side=tk.LEFT)
 
-        # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        # Mode selection
+        mode_frame = ttk.LabelFrame(tab, text="Input Mode", padding="10")
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(csv_frame, text="For Add: group,member,role (role: MEMBER, MANAGER, or OWNER)").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="For Remove: group,member").pack(anchor=tk.W, pady=(5, 10))
+        self.manage_members_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single Entry",
+            variable=self.manage_members_mode,
+            value="single",
+            command=self.toggle_manage_members_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.manage_members_mode,
+            value="csv",
+            command=self.toggle_manage_members_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific frames
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single entry frame
+        self.manage_members_single_frame = ttk.LabelFrame(mode_container, text="Member Details", padding="10")
+
+        # Group selection with dropdown
+        group_frame = ttk.Frame(self.manage_members_single_frame)
+        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+
+        ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
+        self.manage_members_group_combo = ttk.Combobox(group_frame, width=47, state='readonly')
+        self.manage_members_group_combo.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_manage_members).pack(side=tk.LEFT)
+
+        # Member email
+        ttk.Label(self.manage_members_single_frame, text="Member Email:").grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
+        self.manage_members_email = ttk.Entry(self.manage_members_single_frame, width=50)
+        self.manage_members_email.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Role selection (for add action)
+        ttk.Label(self.manage_members_single_frame, text="Role (for Add):").grid(row=2, column=0, sticky=tk.W)
+        self.manage_members_role = ttk.Combobox(
+            self.manage_members_single_frame,
+            values=["MEMBER", "MANAGER", "OWNER"],
+            state='readonly',
+            width=47
+        )
+        self.manage_members_role.set("MEMBER")
+        self.manage_members_role.grid(row=2, column=1, sticky=tk.W)
+
+        self.manage_members_single_frame.grid_columnconfigure(1, weight=1)
+
+        # CSV frame
+        self.manage_members_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
+
+        ttk.Label(self.manage_members_csv_frame, text="For Add: group,member,role (role: MEMBER, MANAGER, or OWNER)").pack(anchor=tk.W)
+        ttk.Label(self.manage_members_csv_frame, text="For Remove: group,member").pack(anchor=tk.W, pady=(5, 10))
+
+        csv_input_frame = ttk.Frame(self.manage_members_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.manage_members_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -343,6 +399,9 @@ class GroupsWindow(BaseOperationWindow):
             text="Browse",
             command=lambda: self.browse_csv_file(self.manage_members_csv_entry)
         ).pack(side=tk.LEFT)
+
+        # Show single frame by default
+        self.manage_members_single_frame.pack(fill=tk.X, expand=True)
 
         # Progress frame
         self.manage_members_progress = self.create_progress_frame(tab)
@@ -367,54 +426,109 @@ class GroupsWindow(BaseOperationWindow):
             variable=self.manage_members_dry_run
         ).pack(side=tk.LEFT)
 
+    def toggle_manage_members_mode(self):
+        """Toggle between single entry and CSV mode for manage members."""
+        if self.manage_members_mode.get() == "single":
+            self.manage_members_csv_frame.pack_forget()
+            self.manage_members_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.manage_members_single_frame.pack_forget()
+            self.manage_members_csv_frame.pack(fill=tk.X, expand=True)
+
+    def load_groups_for_manage_members(self):
+        """Load groups into combobox for manage members."""
+        # Set loading indicator
+        self.manage_members_group_combo['values'] = ["Loading..."]
+        self.manage_members_group_combo.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_groups
+            groups = fetch_groups()
+            if groups:
+                # Update combobox in main thread
+                self.after(0, lambda: self.manage_members_group_combo.configure(values=sorted(groups)))
+                self.after(0, lambda: self.manage_members_group_combo.set(""))
+            else:
+                self.after(0, lambda: self.manage_members_group_combo.configure(values=["No groups found"]))
+                self.after(0, lambda: self.manage_members_group_combo.set("No groups found"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_manage_members(self):
         """Execute manage members operation."""
-        csv_file = self.manage_members_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
-
+        mode = self.manage_members_mode.get()
         action = self.manage_members_action.get()
         dry_run = self.manage_members_dry_run.get()
 
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                data = list(reader)
+        if mode == "single":
+            # Single entry mode
+            group = self.manage_members_group_combo.get().strip()
+            member = self.manage_members_email.get().strip()
+            role = self.manage_members_role.get()
 
-            if not data:
-                messagebox.showerror("Error", "CSV file is empty.")
+            if not group:
+                messagebox.showerror("Validation Error", "Group is required.")
+                return
+            if not member:
+                messagebox.showerror("Validation Error", "Member email is required.")
                 return
 
-            # Validate fields
-            for row in data:
-                if 'group' not in row or not row['group']:
-                    messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
-                    return
-                if 'member' not in row or not row['member']:
-                    messagebox.showerror("Validation Error", "Missing 'member' field in CSV.")
-                    return
-
-            if not self.confirm_bulk_operation(len(data), f"{action} members"):
-                return
-
+            # Build data dict
             if action == 'add':
-                self.run_operation(
-                    groups_module.add_members,
-                    self.manage_members_progress,
-                    data,
-                    dry_run=dry_run
-                )
-            else:
-                self.run_operation(
-                    groups_module.remove_members,
-                    self.manage_members_progress,
-                    data,
-                    dry_run=dry_run
-                )
+                data = [{'group': group, 'member': member, 'role': role}]
+            else:  # remove
+                data = [{'group': group, 'member': member}]
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        else:
+            # CSV mode
+            csv_file = self.manage_members_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    data = list(reader)
+
+                if not data:
+                    messagebox.showerror("Error", "CSV file is empty.")
+                    return
+
+                # Validate fields
+                for row in data:
+                    if 'group' not in row or not row['group']:
+                        messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
+                        return
+                    if 'member' not in row or not row['member']:
+                        messagebox.showerror("Validation Error", "Missing 'member' field in CSV.")
+                        return
+
+                # Confirm bulk operation
+                if not self.confirm_bulk_operation(len(data), f"{action} members"):
+                    return
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
+
+        # Execute
+        if action == 'add':
+            self.run_operation(
+                groups_module.add_members,
+                self.manage_members_progress,
+                data,
+                dry_run=dry_run
+            )
+        else:
+            self.run_operation(
+                groups_module.remove_members,
+                self.manage_members_progress,
+                data,
+                dry_run=dry_run
+            )
 
     # ==================== TAB 4: LIST MEMBERS ====================
 
@@ -432,11 +546,19 @@ class GroupsWindow(BaseOperationWindow):
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Group selection
-        group_frame = ttk.LabelFrame(tab, text="Group Email", padding="10")
+        group_frame = ttk.LabelFrame(tab, text="Select Group", padding="10")
         group_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.list_members_entry = ttk.Entry(group_frame, width=50)
-        self.list_members_entry.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
+
+        self.list_members_combo = ttk.Combobox(group_frame, width=47, state='readonly')
+        self.list_members_combo.pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(
+            group_frame,
+            text="Load Groups",
+            command=self.load_groups_for_list_members
+        ).pack(side=tk.LEFT, padx=(0, 10))
 
         ttk.Button(
             group_frame,
@@ -456,11 +578,29 @@ class GroupsWindow(BaseOperationWindow):
         self.list_members_text.pack(fill=tk.BOTH, expand=True)
         scroll.config(command=self.list_members_text.yview)
 
+    def load_groups_for_list_members(self):
+        """Load groups into the combobox for list members."""
+        self.list_members_combo['values'] = ["Loading..."]
+        self.list_members_combo.current(0)
+        self.update_idletasks()
+
+        # Fetch groups in thread
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_groups
+            groups = fetch_groups()
+            if groups:
+                self.after(0, lambda: self.list_members_combo.configure(values=sorted(groups)))
+            else:
+                self.after(0, lambda: self.list_members_combo.configure(values=["(No groups found)"]))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_list_members(self):
         """Execute list members operation."""
-        group_email = self.list_members_entry.get().strip()
-        if not group_email:
-            messagebox.showerror("Validation Error", "Please enter a group email.")
+        group_email = self.list_members_combo.get().strip()
+        if not group_email or group_email == "Loading..." or group_email == "(No groups found)":
+            messagebox.showerror("Validation Error", "Please select a group from the dropdown.")
             return
 
         self.list_members_text.delete("1.0", tk.END)
@@ -493,19 +633,95 @@ class GroupsWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Update group settings. Use CSV for bulk updates.",
+            text="Update group settings. Choose single entry for individual groups or CSV for bulk updates.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
-        # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        # Mode selection
+        mode_frame = ttk.LabelFrame(tab, text="Input Mode", padding="10")
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(csv_frame, text="CSV Format: group,whoCanPostMessage,whoCanViewGroup,whoCanJoin").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="Values: ALL_IN_DOMAIN_CAN_POST, ALL_MEMBERS_CAN_POST, OWNERS_ONLY, etc.").pack(anchor=tk.W, pady=(5, 10))
+        self.group_settings_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single Entry",
+            variable=self.group_settings_mode,
+            value="single",
+            command=self.toggle_group_settings_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.group_settings_mode,
+            value="csv",
+            command=self.toggle_group_settings_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific frames
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single entry frame
+        self.group_settings_single_frame = ttk.LabelFrame(mode_container, text="Group Settings", padding="10")
+
+        # Group selection with dropdown
+        group_frame = ttk.Frame(self.group_settings_single_frame)
+        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+
+        ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
+        self.group_settings_group_combo = ttk.Combobox(group_frame, width=47, state='readonly')
+        self.group_settings_group_combo.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_settings).pack(side=tk.LEFT)
+
+        # Common group settings
+        settings_info = ttk.Label(
+            self.group_settings_single_frame,
+            text="Leave fields empty to keep current settings unchanged.",
+            font=('Arial', 9, 'italic')
+        )
+        settings_info.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+
+        # whoCanPostMessage
+        ttk.Label(self.group_settings_single_frame, text="Who Can Post:").grid(row=2, column=0, sticky=tk.W, pady=(0, 10))
+        self.group_settings_post = ttk.Combobox(
+            self.group_settings_single_frame,
+            values=["", "ALL_IN_DOMAIN_CAN_POST", "ALL_MEMBERS_CAN_POST", "ALL_MANAGERS_CAN_POST", "OWNERS_ONLY"],
+            width=47
+        )
+        self.group_settings_post.set("")
+        self.group_settings_post.grid(row=2, column=1, sticky=tk.W, pady=(0, 10))
+
+        # whoCanViewGroup
+        ttk.Label(self.group_settings_single_frame, text="Who Can View:").grid(row=3, column=0, sticky=tk.W, pady=(0, 10))
+        self.group_settings_view = ttk.Combobox(
+            self.group_settings_single_frame,
+            values=["", "ALL_IN_DOMAIN_CAN_VIEW", "ALL_MEMBERS_CAN_VIEW", "ALL_MANAGERS_CAN_VIEW", "OWNERS_ONLY"],
+            width=47
+        )
+        self.group_settings_view.set("")
+        self.group_settings_view.grid(row=3, column=1, sticky=tk.W, pady=(0, 10))
+
+        # whoCanJoin
+        ttk.Label(self.group_settings_single_frame, text="Who Can Join:").grid(row=4, column=0, sticky=tk.W)
+        self.group_settings_join = ttk.Combobox(
+            self.group_settings_single_frame,
+            values=["", "CAN_REQUEST_TO_JOIN", "ALL_IN_DOMAIN_CAN_JOIN", "INVITED_CAN_JOIN", "ANYONE_CAN_JOIN"],
+            width=47
+        )
+        self.group_settings_join.set("")
+        self.group_settings_join.grid(row=4, column=1, sticky=tk.W)
+
+        self.group_settings_single_frame.grid_columnconfigure(1, weight=1)
+
+        # CSV frame
+        self.group_settings_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
+
+        ttk.Label(self.group_settings_csv_frame, text="CSV Format: group,whoCanPostMessage,whoCanViewGroup,whoCanJoin").pack(anchor=tk.W)
+        ttk.Label(self.group_settings_csv_frame, text="Values: ALL_IN_DOMAIN_CAN_POST, ALL_MEMBERS_CAN_POST, OWNERS_ONLY, etc.").pack(anchor=tk.W, pady=(5, 10))
+
+        csv_input_frame = ttk.Frame(self.group_settings_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.group_settings_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -516,6 +732,9 @@ class GroupsWindow(BaseOperationWindow):
             text="Browse",
             command=lambda: self.browse_csv_file(self.group_settings_csv_entry)
         ).pack(side=tk.LEFT)
+
+        # Show single frame by default
+        self.group_settings_single_frame.pack(fill=tk.X, expand=True)
 
         # Progress frame
         self.group_settings_progress = self.create_progress_frame(tab)
@@ -540,41 +759,105 @@ class GroupsWindow(BaseOperationWindow):
             variable=self.group_settings_dry_run
         ).pack(side=tk.LEFT)
 
+    def toggle_group_settings_mode(self):
+        """Toggle between single entry and CSV mode for group settings."""
+        if self.group_settings_mode.get() == "single":
+            self.group_settings_csv_frame.pack_forget()
+            self.group_settings_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.group_settings_single_frame.pack_forget()
+            self.group_settings_csv_frame.pack(fill=tk.X, expand=True)
+
+    def load_groups_for_settings(self):
+        """Load groups into combobox for group settings."""
+        # Set loading indicator
+        self.group_settings_group_combo['values'] = ["Loading..."]
+        self.group_settings_group_combo.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_groups
+            groups = fetch_groups()
+            if groups:
+                # Update combobox in main thread
+                self.after(0, lambda: self.group_settings_group_combo.configure(values=sorted(groups)))
+                self.after(0, lambda: self.group_settings_group_combo.set(""))
+            else:
+                self.after(0, lambda: self.group_settings_group_combo.configure(values=["No groups found"]))
+                self.after(0, lambda: self.group_settings_group_combo.set("No groups found"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_group_settings(self):
         """Execute group settings operation."""
-        csv_file = self.group_settings_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
+        mode = self.group_settings_mode.get()
+        dry_run = self.group_settings_dry_run.get()
 
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                settings_data = list(reader)
+        if mode == "single":
+            # Single entry mode
+            group = self.group_settings_group_combo.get().strip()
+            who_can_post = self.group_settings_post.get().strip()
+            who_can_view = self.group_settings_view.get().strip()
+            who_can_join = self.group_settings_join.get().strip()
 
-            if not settings_data:
-                messagebox.showerror("Error", "CSV file is empty.")
+            if not group:
+                messagebox.showerror("Validation Error", "Group is required.")
                 return
 
-            # Validate group field
-            for data in settings_data:
-                if 'group' not in data or not data['group']:
-                    messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
+            # Build settings dict with only non-empty values
+            settings = {'group': group}
+            if who_can_post:
+                settings['whoCanPostMessage'] = who_can_post
+            if who_can_view:
+                settings['whoCanViewGroup'] = who_can_view
+            if who_can_join:
+                settings['whoCanJoin'] = who_can_join
+
+            # At least one setting must be provided
+            if len(settings) == 1:  # Only 'group' key
+                messagebox.showerror("Validation Error", "At least one setting must be provided.")
+                return
+
+            settings_data = [settings]
+
+        else:
+            # CSV mode
+            csv_file = self.group_settings_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    settings_data = list(reader)
+
+                if not settings_data:
+                    messagebox.showerror("Error", "CSV file is empty.")
                     return
 
-            if not self.confirm_bulk_operation(len(settings_data), "update group settings"):
+                # Validate group field
+                for data in settings_data:
+                    if 'group' not in data or not data['group']:
+                        messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
+                        return
+
+                # Confirm bulk operation
+                if not self.confirm_bulk_operation(len(settings_data), "update group settings"):
+                    return
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
                 return
 
-            dry_run = self.group_settings_dry_run.get()
-            self.run_operation(
-                groups_module.update_group_settings,
-                self.group_settings_progress,
-                settings_data,
-                dry_run=dry_run
-            )
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        # Execute
+        self.run_operation(
+            groups_module.update_group_settings,
+            self.group_settings_progress,
+            settings_data,
+            dry_run=dry_run
+        )
 
     # ==================== TAB 6: GROUP ALIASES ====================
 
@@ -586,7 +869,7 @@ class GroupsWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Add or remove group aliases. Use CSV for bulk operations.",
+            text="Add or remove group aliases. Choose single entry for individual operations or CSV for bulk operations.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
@@ -610,14 +893,57 @@ class GroupsWindow(BaseOperationWindow):
             value="remove"
         ).pack(side=tk.LEFT)
 
-        # CSV selection frame
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, pady=(0, 10))
+        # Mode selection
+        mode_frame = ttk.LabelFrame(tab, text="Input Mode", padding="10")
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(csv_frame, text="For Add: group,alias").pack(anchor=tk.W)
-        ttk.Label(csv_frame, text="For Remove: Just list aliases (header: alias)").pack(anchor=tk.W, pady=(5, 10))
+        self.group_aliases_mode = tk.StringVar(value="single")
+        ttk.Radiobutton(
+            mode_frame,
+            text="Single Entry",
+            variable=self.group_aliases_mode,
+            value="single",
+            command=self.toggle_group_aliases_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
 
-        csv_input_frame = ttk.Frame(csv_frame)
+        ttk.Radiobutton(
+            mode_frame,
+            text="CSV Bulk Import",
+            variable=self.group_aliases_mode,
+            value="csv",
+            command=self.toggle_group_aliases_mode
+        ).pack(side=tk.LEFT)
+
+        # Container for mode-specific frames
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
+        # Single entry frame
+        self.group_aliases_single_frame = ttk.LabelFrame(mode_container, text="Alias Details", padding="10")
+
+        # Group selection with dropdown (for add action)
+        group_frame = ttk.Frame(self.group_aliases_single_frame)
+        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+
+        ttk.Label(group_frame, text="Group (for Add):").pack(side=tk.LEFT, padx=(0, 5))
+        self.group_aliases_group_combo = ttk.Combobox(group_frame, width=40, state='readonly')
+        self.group_aliases_group_combo.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_aliases).pack(side=tk.LEFT)
+
+        # Alias entry
+        ttk.Label(self.group_aliases_single_frame, text="Alias:").grid(row=1, column=0, sticky=tk.W)
+        self.group_aliases_alias = ttk.Entry(self.group_aliases_single_frame, width=50)
+        self.group_aliases_alias.grid(row=1, column=1, sticky=(tk.W, tk.E))
+
+        self.group_aliases_single_frame.grid_columnconfigure(1, weight=1)
+
+        # CSV frame
+        self.group_aliases_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
+
+        ttk.Label(self.group_aliases_csv_frame, text="For Add: group,alias").pack(anchor=tk.W)
+        ttk.Label(self.group_aliases_csv_frame, text="For Remove: Just list aliases (header: alias)").pack(anchor=tk.W, pady=(5, 10))
+
+        csv_input_frame = ttk.Frame(self.group_aliases_csv_frame)
         csv_input_frame.pack(fill=tk.X)
 
         self.group_aliases_csv_entry = ttk.Entry(csv_input_frame, width=60)
@@ -628,6 +954,9 @@ class GroupsWindow(BaseOperationWindow):
             text="Browse",
             command=lambda: self.browse_csv_file(self.group_aliases_csv_entry)
         ).pack(side=tk.LEFT)
+
+        # Show single frame by default
+        self.group_aliases_single_frame.pack(fill=tk.X, expand=True)
 
         # Progress frame
         self.group_aliases_progress = self.create_progress_frame(tab)
@@ -652,64 +981,114 @@ class GroupsWindow(BaseOperationWindow):
             variable=self.group_aliases_dry_run
         ).pack(side=tk.LEFT)
 
+    def toggle_group_aliases_mode(self):
+        """Toggle between single entry and CSV mode for group aliases."""
+        if self.group_aliases_mode.get() == "single":
+            self.group_aliases_csv_frame.pack_forget()
+            self.group_aliases_single_frame.pack(fill=tk.X, expand=True)
+        else:
+            self.group_aliases_single_frame.pack_forget()
+            self.group_aliases_csv_frame.pack(fill=tk.X, expand=True)
+
+    def load_groups_for_aliases(self):
+        """Load groups into combobox for group aliases."""
+        # Set loading indicator
+        self.group_aliases_group_combo['values'] = ["Loading..."]
+        self.group_aliases_group_combo.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_groups
+            groups = fetch_groups()
+            if groups:
+                # Update combobox in main thread
+                self.after(0, lambda: self.group_aliases_group_combo.configure(values=sorted(groups)))
+                self.after(0, lambda: self.group_aliases_group_combo.set(""))
+            else:
+                self.after(0, lambda: self.group_aliases_group_combo.configure(values=["No groups found"]))
+                self.after(0, lambda: self.group_aliases_group_combo.set("No groups found"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_group_aliases(self):
         """Execute group aliases operation."""
-        csv_file = self.group_aliases_csv_entry.get().strip()
-        if not csv_file:
-            messagebox.showerror("Validation Error", "Please select a CSV file.")
-            return
-
+        mode = self.group_aliases_mode.get()
         action = self.group_aliases_action.get()
         dry_run = self.group_aliases_dry_run.get()
 
-        try:
-            with open(csv_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                data = list(reader)
+        if mode == "single":
+            # Single entry mode
+            alias = self.group_aliases_alias.get().strip()
 
-            if not data:
-                messagebox.showerror("Error", "CSV file is empty.")
+            if not alias:
+                messagebox.showerror("Validation Error", "Alias is required.")
                 return
 
             if action == 'add':
-                # Validate add format
-                for row in data:
-                    if 'group' not in row or not row['group']:
-                        messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
-                        return
-                    if 'alias' not in row or not row['alias']:
-                        messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
-                        return
+                group = self.group_aliases_group_combo.get().strip()
+                if not group:
+                    messagebox.showerror("Validation Error", "Group is required for add action.")
+                    return
+                data = [{'group': group, 'alias': alias}]
+            else:  # remove
+                data = [{'alias': alias}]
 
-                if not self.confirm_bulk_operation(len(data), "add group aliases"):
+        else:
+            # CSV mode
+            csv_file = self.group_aliases_csv_entry.get().strip()
+            if not csv_file:
+                messagebox.showerror("Validation Error", "Please select a CSV file.")
+                return
+
+            try:
+                with open(csv_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    data = list(reader)
+
+                if not data:
+                    messagebox.showerror("Error", "CSV file is empty.")
                     return
 
-                self.run_operation(
-                    groups_module.add_group_alias,
-                    self.group_aliases_progress,
-                    data,
-                    dry_run=dry_run
-                )
-            else:
-                # Remove - just need list of aliases
-                if 'alias' not in data[0]:
-                    messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
+                if action == 'add':
+                    # Validate add format
+                    for row in data:
+                        if 'group' not in row or not row['group']:
+                            messagebox.showerror("Validation Error", "Missing 'group' field in CSV.")
+                            return
+                        if 'alias' not in row or not row['alias']:
+                            messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
+                            return
+                else:
+                    # Validate remove format
+                    for row in data:
+                        if 'alias' not in row or not row['alias']:
+                            messagebox.showerror("Validation Error", "Missing 'alias' field in CSV.")
+                            return
+
+                # Confirm bulk operation
+                if not self.confirm_bulk_operation(len(data), f"{action} group aliases"):
                     return
 
-                aliases = [row['alias'] for row in data if row.get('alias')]
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+                return
 
-                if not self.confirm_bulk_operation(len(aliases), "remove group aliases"):
-                    return
-
-                self.run_operation(
-                    groups_module.remove_group_alias,
-                    self.group_aliases_progress,
-                    aliases,
-                    dry_run=dry_run
-                )
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
+        # Execute
+        if action == 'add':
+            self.run_operation(
+                groups_module.add_group_alias,
+                self.group_aliases_progress,
+                data,
+                dry_run=dry_run
+            )
+        else:  # remove
+            self.run_operation(
+                groups_module.remove_group_alias,
+                self.group_aliases_progress,
+                data,
+                dry_run=dry_run
+            )
 
     # ==================== TAB 7: USER'S GROUPS ====================
 
@@ -727,11 +1106,19 @@ class GroupsWindow(BaseOperationWindow):
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # User selection
-        user_frame = ttk.LabelFrame(tab, text="User Email", padding="10")
+        user_frame = ttk.LabelFrame(tab, text="Select User", padding="10")
         user_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.user_groups_entry = ttk.Entry(user_frame, width=50)
-        self.user_groups_entry.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(user_frame, text="User:").pack(side=tk.LEFT, padx=(0, 5))
+
+        self.user_groups_combo = ttk.Combobox(user_frame, width=47, state='readonly')
+        self.user_groups_combo.pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(
+            user_frame,
+            text="Load Users",
+            command=self.load_users_for_user_groups
+        ).pack(side=tk.LEFT, padx=(0, 10))
 
         ttk.Button(
             user_frame,
@@ -751,11 +1138,29 @@ class GroupsWindow(BaseOperationWindow):
         self.user_groups_text.pack(fill=tk.BOTH, expand=True)
         scroll.config(command=self.user_groups_text.yview)
 
+    def load_users_for_user_groups(self):
+        """Load users into the combobox for user groups."""
+        self.user_groups_combo['values'] = ["Loading..."]
+        self.user_groups_combo.current(0)
+        self.update_idletasks()
+
+        # Fetch users in thread
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.user_groups_combo.configure(values=sorted(users)))
+            else:
+                self.after(0, lambda: self.user_groups_combo.configure(values=["(No users found)"]))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_user_groups(self):
         """Execute user groups operation."""
-        user_email = self.user_groups_entry.get().strip()
-        if not user_email:
-            messagebox.showerror("Validation Error", "Please enter a user email.")
+        user_email = self.user_groups_combo.get().strip()
+        if not user_email or user_email == "Loading..." or user_email == "(No users found)":
+            messagebox.showerror("Validation Error", "Please select a user from the dropdown.")
             return
 
         self.user_groups_text.delete("1.0", tk.END)

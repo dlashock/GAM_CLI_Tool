@@ -399,15 +399,25 @@ def list_members(group_email):
             members = []
             lines = result.stdout.strip().split('\n')
 
-            # Parse CSV output (email,role,type,status)
-            for line in lines[1:]:  # Skip header
-                if line.strip():
-                    parts = line.split(',')
-                    if len(parts) >= 2:
-                        members.append({
-                            'email': parts[0].strip(),
-                            'role': parts[1].strip() if len(parts) > 1 else 'MEMBER'
-                        })
+            if not lines or len(lines) < 2:
+                return (True, [])  # No members
+
+            # Parse CSV output using DictReader for reliability
+            import csv
+            from io import StringIO
+
+            reader = csv.DictReader(StringIO(result.stdout))
+            for row in reader:
+                # GAM output typically has: group, email, role, type, status
+                # The member email can be in 'email' or 'member' column
+                member_email = row.get('email', row.get('member', '')).strip()
+                role = row.get('role', 'MEMBER').strip().upper()
+
+                if member_email and member_email != group_email:
+                    members.append({
+                        'email': member_email,
+                        'role': role
+                    })
 
             return (True, members)
         else:
@@ -579,11 +589,21 @@ def list_user_groups(user_email):
             groups = []
             lines = result.stdout.strip().split('\n')
 
-            for line in lines[1:]:  # Skip header
-                if line.strip():
-                    parts = line.split(',')
-                    if parts:
-                        groups.append(parts[0].strip())
+            if not lines or len(lines) < 2:
+                return (True, [])  # No groups
+
+            # Parse CSV output using DictReader for reliability
+            import csv
+            from io import StringIO
+
+            reader = csv.DictReader(StringIO(result.stdout))
+            for row in reader:
+                # GAM output typically has: user, group, role, type, status
+                # The group email can be in 'group' or 'email' column
+                group_email = row.get('group', row.get('email', '')).strip()
+
+                if group_email and group_email != user_email:
+                    groups.append(group_email)
 
             return (True, groups)
         else:
