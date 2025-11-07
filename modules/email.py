@@ -894,3 +894,42 @@ def list_filters(user_email):
     except Exception as e:
         log_error("List Filters", f"Exception for {user_email}: {str(e)}")
         return []
+
+
+def list_labels(user_email):
+    """
+    List all labels for a user.
+
+    This is a helper function for the GUI to populate label selection.
+
+    Args:
+        user_email (str): Email address of the user
+
+    Returns:
+        list: List of label names or empty list on error
+    """
+    try:
+        cmd = [_get_gam_command(), 'user', user_email, 'show', 'labels']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+        if result.returncode != 0:
+            log_error("List Labels", f"Failed for {user_email}: {result.stderr[:2000]}")
+            return []
+
+        # Parse output to extract label names
+        labels = []
+        lines = result.stdout.split('\n')
+
+        for line in lines:
+            # Look for label patterns - GAM typically shows label names
+            line = line.strip()
+            if line and not line.startswith('Getting') and not line.startswith('User:'):
+                # Simple approach: each non-empty line that's not a header is likely a label
+                if line and len(line) > 0:
+                    labels.append(line)
+
+        return labels
+
+    except Exception as e:
+        log_error("List Labels", f"Exception for {user_email}: {str(e)}")
+        return []
