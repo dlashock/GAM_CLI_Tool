@@ -83,9 +83,12 @@ class GroupsWindow(BaseOperationWindow):
             command=self.toggle_create_groups_mode
         ).pack(side=tk.LEFT)
 
+        # Container for mode-specific content (keeps layout stable)
+        mode_container = ttk.Frame(tab)
+        mode_container.pack(fill=tk.X, pady=(0, 10))
+
         # Single group input frame
-        self.create_groups_single_frame = ttk.LabelFrame(tab, text="Group Details", padding="10")
-        self.create_groups_single_frame.pack(fill=tk.X, pady=(0, 10))
+        self.create_groups_single_frame = ttk.LabelFrame(mode_container, text="Group Details", padding="10")
 
         # Email (required)
         ttk.Label(self.create_groups_single_frame, text="Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
@@ -107,8 +110,7 @@ class GroupsWindow(BaseOperationWindow):
         self.create_groups_single_frame.grid_columnconfigure(1, weight=1)
 
         # CSV selection frame
-        self.create_groups_csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        self.create_groups_csv_frame.pack(fill=tk.X, pady=(0, 10))
+        self.create_groups_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
         ttk.Label(self.create_groups_csv_frame, text="CSV Format: email,name,description").pack(anchor=tk.W)
         ttk.Label(self.create_groups_csv_frame, text="Required: email, name. Optional: description").pack(anchor=tk.W, pady=(5, 10))
@@ -154,11 +156,11 @@ class GroupsWindow(BaseOperationWindow):
     def toggle_create_groups_mode(self):
         """Toggle between single and CSV mode for create groups."""
         if self.create_groups_mode.get() == "single":
-            self.create_groups_single_frame.pack(fill=tk.X, pady=(0, 10))
             self.create_groups_csv_frame.pack_forget()
+            self.create_groups_single_frame.pack(fill=tk.X, expand=True)
         else:
             self.create_groups_single_frame.pack_forget()
-            self.create_groups_csv_frame.pack(fill=tk.X, pady=(0, 10))
+            self.create_groups_csv_frame.pack(fill=tk.X, expand=True)
 
     def execute_create_groups(self):
         """Execute create groups operation."""
