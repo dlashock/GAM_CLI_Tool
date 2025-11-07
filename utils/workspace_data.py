@@ -9,7 +9,7 @@ import subprocess
 import csv
 from io import StringIO
 from .logger import log_error
-from .gam_path import get_gam_path
+from .gam_check import get_gam_path
 
 
 def _get_gam_command():
