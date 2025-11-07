@@ -244,8 +244,8 @@ class GroupsWindow(BaseOperationWindow):
         )
         warning.pack(pady=(0, 10), anchor=tk.W)
 
-        # Target selection
-        self.delete_groups_target = self.create_target_selection_frame(tab, 'delete_groups')
+        # Target selection (use group-specific selector)
+        self.delete_groups_target = self.create_group_target_selection_frame(tab, 'delete_groups')
         self.delete_groups_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
@@ -273,7 +273,7 @@ class GroupsWindow(BaseOperationWindow):
 
     def execute_delete_groups(self):
         """Execute delete groups operation."""
-        groups = self.get_target_users('delete_groups')  # Reuses target selection
+        groups = self.get_target_groups('delete_groups')
         if groups is None:
             return
 
