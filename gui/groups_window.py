@@ -244,8 +244,8 @@ class GroupsWindow(BaseOperationWindow):
         )
         warning.pack(pady=(0, 10), anchor=tk.W)
 
-        # Target selection (use group-specific selector)
-        self.delete_groups_target = self.create_group_target_selection_frame(tab, 'delete_groups')
+        # Target selection (use single-group selector for safety - no "All Groups" option)
+        self.delete_groups_target = self.create_single_group_target_selection_frame(tab, 'delete_groups')
         self.delete_groups_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
@@ -684,42 +684,74 @@ class GroupsWindow(BaseOperationWindow):
         settings_info.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
 
         # whoCanPostMessage
-        ttk.Label(self.group_settings_single_frame, text="Who Can Post:").grid(row=2, column=0, sticky=tk.W, pady=(0, 10))
+        ttk.Label(self.group_settings_single_frame, text="Who Can Post Messages:").grid(row=2, column=0, sticky=tk.W, pady=(0, 10))
         self.group_settings_post = ttk.Combobox(
             self.group_settings_single_frame,
-            values=["", "ALL_IN_DOMAIN_CAN_POST", "ALL_MEMBERS_CAN_POST", "ALL_MANAGERS_CAN_POST", "OWNERS_ONLY"],
+            values=[
+                "",
+                "ANYONE_CAN_POST - Anyone on internet",
+                "ALL_IN_DOMAIN_CAN_POST - Anyone in organization",
+                "ALL_MEMBERS_CAN_POST - Only group members",
+                "ALL_MANAGERS_CAN_POST - Only managers",
+                "NONE_CAN_POST - No one can post"
+            ],
             width=47
         )
         self.group_settings_post.set("")
         self.group_settings_post.grid(row=2, column=1, sticky=tk.W, pady=(0, 10))
 
         # whoCanViewGroup
-        ttk.Label(self.group_settings_single_frame, text="Who Can View:").grid(row=3, column=0, sticky=tk.W, pady=(0, 10))
+        ttk.Label(self.group_settings_single_frame, text="Who Can View Group:").grid(row=3, column=0, sticky=tk.W, pady=(0, 10))
         self.group_settings_view = ttk.Combobox(
             self.group_settings_single_frame,
-            values=["", "ALL_IN_DOMAIN_CAN_VIEW", "ALL_MEMBERS_CAN_VIEW", "ALL_MANAGERS_CAN_VIEW", "OWNERS_ONLY"],
+            values=[
+                "",
+                "ANYONE_CAN_VIEW - Anyone on internet",
+                "ALL_IN_DOMAIN_CAN_VIEW - Anyone in organization",
+                "ALL_MEMBERS_CAN_VIEW - Only group members",
+                "ALL_MANAGERS_CAN_VIEW - Only managers"
+            ],
             width=47
         )
         self.group_settings_view.set("")
         self.group_settings_view.grid(row=3, column=1, sticky=tk.W, pady=(0, 10))
 
         # whoCanJoin
-        ttk.Label(self.group_settings_single_frame, text="Who Can Join:").grid(row=4, column=0, sticky=tk.W)
+        ttk.Label(self.group_settings_single_frame, text="Who Can Join:").grid(row=4, column=0, sticky=tk.W, pady=(0, 10))
         self.group_settings_join = ttk.Combobox(
             self.group_settings_single_frame,
-            values=["", "CAN_REQUEST_TO_JOIN", "ALL_IN_DOMAIN_CAN_JOIN", "INVITED_CAN_JOIN", "ANYONE_CAN_JOIN"],
+            values=[
+                "",
+                "ANYONE_CAN_JOIN - Anyone can join",
+                "ALL_IN_DOMAIN_CAN_JOIN - Anyone in organization",
+                "INVITED_CAN_JOIN - Only invited users",
+                "CAN_REQUEST_TO_JOIN - Users can request"
+            ],
             width=47
         )
         self.group_settings_join.set("")
-        self.group_settings_join.grid(row=4, column=1, sticky=tk.W)
+        self.group_settings_join.grid(row=4, column=1, sticky=tk.W, pady=(0, 10))
+
+        # allowExternalMembers
+        ttk.Label(self.group_settings_single_frame, text="Allow External Members:").grid(row=5, column=0, sticky=tk.W)
+        self.group_settings_external = ttk.Combobox(
+            self.group_settings_single_frame,
+            values=["", "true - Allow external", "false - Organization only"],
+            width=47
+        )
+        self.group_settings_external.set("")
+        self.group_settings_external.grid(row=5, column=1, sticky=tk.W)
 
         self.group_settings_single_frame.grid_columnconfigure(1, weight=1)
 
         # CSV frame
         self.group_settings_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
-        ttk.Label(self.group_settings_csv_frame, text="CSV Format: group,whoCanPostMessage,whoCanViewGroup,whoCanJoin").pack(anchor=tk.W)
-        ttk.Label(self.group_settings_csv_frame, text="Values: ALL_IN_DOMAIN_CAN_POST, ALL_MEMBERS_CAN_POST, OWNERS_ONLY, etc.").pack(anchor=tk.W, pady=(5, 10))
+        ttk.Label(self.group_settings_csv_frame, text="CSV Format: group,whoCanPostMessage,whoCanViewGroup,whoCanJoin,allowExternalMembers").pack(anchor=tk.W)
+        ttk.Label(self.group_settings_csv_frame, text="Post: ANYONE_CAN_POST, ALL_IN_DOMAIN_CAN_POST, ALL_MEMBERS_CAN_POST, ALL_MANAGERS_CAN_POST, NONE_CAN_POST").pack(anchor=tk.W, pady=(5, 0))
+        ttk.Label(self.group_settings_csv_frame, text="View: ANYONE_CAN_VIEW, ALL_IN_DOMAIN_CAN_VIEW, ALL_MEMBERS_CAN_VIEW, ALL_MANAGERS_CAN_VIEW").pack(anchor=tk.W)
+        ttk.Label(self.group_settings_csv_frame, text="Join: ANYONE_CAN_JOIN, ALL_IN_DOMAIN_CAN_JOIN, INVITED_CAN_JOIN, CAN_REQUEST_TO_JOIN").pack(anchor=tk.W)
+        ttk.Label(self.group_settings_csv_frame, text="External: true or false").pack(anchor=tk.W, pady=(0, 10))
 
         csv_input_frame = ttk.Frame(self.group_settings_csv_frame)
         csv_input_frame.pack(fill=tk.X)
@@ -800,19 +832,29 @@ class GroupsWindow(BaseOperationWindow):
             who_can_post = self.group_settings_post.get().strip()
             who_can_view = self.group_settings_view.get().strip()
             who_can_join = self.group_settings_join.get().strip()
+            allow_external = self.group_settings_external.get().strip()
 
             if not group:
                 messagebox.showerror("Validation Error", "Group is required.")
                 return
 
+            # Helper function to extract value before " - " separator
+            def extract_value(dropdown_text):
+                if not dropdown_text:
+                    return ""
+                # Split on " - " and take first part
+                return dropdown_text.split(" - ")[0].strip()
+
             # Build settings dict with only non-empty values
             settings = {'group': group}
             if who_can_post:
-                settings['whoCanPostMessage'] = who_can_post
+                settings['whoCanPostMessage'] = extract_value(who_can_post)
             if who_can_view:
-                settings['whoCanViewGroup'] = who_can_view
+                settings['whoCanViewGroup'] = extract_value(who_can_view)
             if who_can_join:
-                settings['whoCanJoin'] = who_can_join
+                settings['whoCanJoin'] = extract_value(who_can_join)
+            if allow_external:
+                settings['allowExternalMembers'] = extract_value(allow_external)
 
             # At least one setting must be provided
             if len(settings) == 1:  # Only 'group' key

@@ -55,7 +55,7 @@ def execute_gam_command(command_args, timeout=30, operation_name="GAM Operation"
 
         # Log errors if command failed
         if result.returncode != 0 and result.stderr:
-            log_error(operation_name, f"Command failed: {result.stderr[:200]}")
+            log_error(operation_name, f"Command failed: {result.stderr[:2000]}")
 
         return result
 

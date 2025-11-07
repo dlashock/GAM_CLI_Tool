@@ -225,6 +225,109 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
         return frame
 
+    def create_single_group_target_selection_frame(self, parent, tab_id):
+        """
+        Create simplified target selection frame for dangerous group operations.
+        Excludes "All Groups" option for safety.
+
+        Args:
+            parent: Parent widget
+            tab_id: Unique identifier for this tab
+
+        Returns:
+            ttk.LabelFrame: The target selection frame
+        """
+        frame = ttk.LabelFrame(parent, text="Target Groups", padding="10")
+
+        # Create variable for target type
+        target_var = tk.StringVar(value="single")
+        setattr(self, f"{tab_id}_target_var", target_var)
+
+        # Radio buttons for target type (NO "All Groups" option for safety)
+        options_frame = ttk.Frame(frame)
+        options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Single Group",
+            variable=target_var,
+            value="single",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="CSV File",
+            variable=target_var,
+            value="csv",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Select from List",
+            variable=target_var,
+            value="list",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Input frame (changes based on selection)
+        input_frame = ttk.Frame(frame)
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        setattr(self, f"{tab_id}_input_frame", input_frame)
+
+        # Single group entry
+        entry_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_entry_frame", entry_frame)
+
+        ttk.Label(entry_frame, text="Group Email:").pack(side=tk.LEFT, padx=(0, 5))
+        entry = ttk.Entry(entry_frame, width=40)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_entry", entry)
+
+        # CSV frame
+        csv_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_csv_frame", csv_frame)
+
+        csv_entry = ttk.Entry(csv_frame, width=50)
+        csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        setattr(self, f"{tab_id}_csv_entry", csv_entry)
+
+        ttk.Button(
+            csv_frame,
+            text="Browse",
+            command=lambda: self.browse_csv(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # List frame (for selecting groups)
+        list_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_list_frame", list_frame)
+
+        ttk.Label(list_frame, text="Select groups (Ctrl+Click for multiple):").pack(anchor=tk.W)
+
+        list_scroll_frame = ttk.Frame(list_frame)
+        list_scroll_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+
+        scrollbar = ttk.Scrollbar(list_scroll_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        listbox = tk.Listbox(list_scroll_frame, selectmode=tk.EXTENDED,
+                            yscrollcommand=scrollbar.set, height=8)
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=listbox.yview)
+        setattr(self, f"{tab_id}_listbox", listbox)
+
+        ttk.Button(
+            list_frame,
+            text="Load Groups",
+            command=lambda: self.load_groups_list(tab_id)
+        ).pack(pady=(5, 0))
+
+        # Show initial input (single group)
+        self.update_target_input(tab_id)
+
+        return frame
+
     def create_group_target_selection_frame(self, parent, tab_id):
         """
         Create target selection frame for group operations (simplified).
@@ -814,7 +917,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
     # ==================== OPERATION EXECUTION ====================
 
-    def run_operation(self, operation_func, progress_frame, *args, dry_run=False):
+    def run_operation(self, operation_func, progress_frame, *args, dry_run=False, on_success=None):
         """
         Run an operation in a background thread.
 
@@ -823,6 +926,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             progress_frame: The progress frame for this operation
             *args: Arguments to pass to operation_func
             dry_run: If True, preview operation without executing
+            on_success: Optional callback function to call on successful completion
         """
         if self.operation_running:
             messagebox.showwarning("Operation Running", "An operation is already in progress.")
@@ -873,15 +977,16 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         self.current_thread.start()
 
         # Start checking queue
-        self.check_operation_queue(progress_frame, result_queue)
+        self.check_operation_queue(progress_frame, result_queue, on_success)
 
-    def check_operation_queue(self, progress_frame, result_queue):
+    def check_operation_queue(self, progress_frame, result_queue, on_success=None):
         """
         Check queue for operation updates.
 
         Args:
             progress_frame: The progress frame
             result_queue: Queue for thread communication
+            on_success: Optional callback to call on successful completion
         """
         try:
             msg_type, msg_data = result_queue.get_nowait()
@@ -896,7 +1001,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                     progress_frame.results_text.config(state=tk.DISABLED)
 
                 # Continue checking
-                self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue))
+                self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue, on_success))
 
             elif msg_type == 'done':
                 # Operation complete
@@ -906,6 +1011,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                 progress_frame.results_text.insert(tk.END, "Operation completed!\n")
                 progress_frame.results_text.config(state=tk.DISABLED)
                 self.operation_running = False
+
+                # Call success callback if provided
+                if on_success:
+                    on_success()
 
             elif msg_type == 'cancelled':
                 # Operation cancelled
@@ -927,7 +1036,20 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
         except queue.Empty:
             # No message yet, check again soon
-            self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue))
+            self.after(100, lambda: self.check_operation_queue(progress_frame, result_queue, on_success))
+
+    def clear_fields(self, *widgets):
+        """
+        Clear the content of specified widgets (Entry or Combobox).
+
+        Args:
+            *widgets: Variable number of widget objects to clear
+        """
+        for widget in widgets:
+            if hasattr(widget, 'delete'):  # Entry widgets
+                widget.delete(0, tk.END)
+            elif hasattr(widget, 'set'):  # Combobox or other widgets with set method
+                widget.set("")
 
     def cancel_operation(self):
         """Cancel the currently running operation."""

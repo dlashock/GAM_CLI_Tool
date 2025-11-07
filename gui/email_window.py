@@ -501,14 +501,36 @@ class EmailWindow(BaseOperationWindow):
         # Action selection
         self.label_action = tk.StringVar(value="create")
         ttk.Radiobutton(params_frame, text="Create Label", variable=self.label_action,
-                       value="create").grid(row=0, column=0, sticky=tk.W, pady=5)
+                       value="create", command=self.toggle_label_input).grid(row=0, column=0, sticky=tk.W, pady=5)
         ttk.Radiobutton(params_frame, text="Delete Label", variable=self.label_action,
-                       value="delete").grid(row=0, column=1, sticky=tk.W, pady=5)
+                       value="delete", command=self.toggle_label_input).grid(row=0, column=1, sticky=tk.W, pady=5)
 
-        # Label name
-        ttk.Label(params_frame, text="Label Name:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.label_name_entry = ttk.Entry(params_frame, width=40)
-        self.label_name_entry.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
+        # Create label frame (text entry)
+        self.label_create_frame = ttk.Frame(params_frame)
+        self.label_create_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.label_create_frame, text="Label Name:").pack(side=tk.LEFT, padx=(0, 5))
+        self.label_name_entry = ttk.Entry(self.label_create_frame, width=40)
+        self.label_name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Delete label frame (dropdown)
+        self.label_delete_frame = ttk.Frame(params_frame)
+        self.label_delete_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
+
+        # User email for label lookup
+        user_row = ttk.Frame(self.label_delete_frame)
+        user_row.pack(fill=tk.X, pady=(0, 5))
+        ttk.Label(user_row, text="User Email:").pack(side=tk.LEFT, padx=(0, 5))
+        self.label_user_entry = ttk.Entry(user_row, width=30)
+        self.label_user_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        ttk.Button(user_row, text="Load Labels", command=self.load_labels_for_user).pack(side=tk.LEFT)
+
+        # Label dropdown
+        label_row = ttk.Frame(self.label_delete_frame)
+        label_row.pack(fill=tk.X)
+        ttk.Label(label_row, text="Label:").pack(side=tk.LEFT, padx=(0, 5))
+        self.label_name_combo = ttk.Combobox(label_row, width=50, state='readonly')
+        self.label_name_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         params_frame.grid_columnconfigure(1, weight=1)
 
@@ -525,6 +547,44 @@ class EmailWindow(BaseOperationWindow):
         self.labels_progress_frame = self.create_progress_frame(tab)
         self.labels_progress_frame.pack(fill=tk.BOTH, expand=True)
 
+        # Initial toggle
+        self.toggle_label_input()
+
+    def toggle_label_input(self):
+        """Toggle label input based on action."""
+        if self.label_action.get() == "create":
+            self.label_create_frame.grid()
+            self.label_delete_frame.grid_remove()
+        else:
+            self.label_create_frame.grid_remove()
+            self.label_delete_frame.grid()
+
+    def load_labels_for_user(self):
+        """Load labels for the specified user."""
+        user_email = self.label_user_entry.get().strip()
+        if not user_email:
+            messagebox.showerror("Validation Error", "Please enter a user email.")
+            return
+
+        # Set loading indicator
+        self.label_name_combo['values'] = ["Loading..."]
+        self.label_name_combo.set("Loading...")
+        self.update_idletasks()
+
+        def fetch_and_populate():
+            import modules.email as email_module
+            labels = email_module.list_labels(user_email)
+            if labels:
+                self.after(0, lambda: self.label_name_combo.configure(values=sorted(labels)))
+                self.after(0, lambda: self.label_name_combo.set("" if labels else "No labels found"))
+            else:
+                self.after(0, lambda: self.label_name_combo.configure(values=["No labels found"]))
+                self.after(0, lambda: self.label_name_combo.set("No labels found"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_labels(self):
         """Execute label operation."""
         if self.operation_running:
@@ -535,12 +595,19 @@ class EmailWindow(BaseOperationWindow):
         if not users:
             return
 
-        label_name = self.label_name_entry.get().strip()
-        if not label_name:
-            messagebox.showerror("Validation Error", "Please enter a label name.")
-            return
-
         action = self.label_action.get()
+
+        # Get label name from appropriate widget
+        if action == "create":
+            label_name = self.label_name_entry.get().strip()
+            if not label_name:
+                messagebox.showerror("Validation Error", "Please enter a label name.")
+                return
+        else:  # delete
+            label_name = self.label_name_combo.get().strip()
+            if not label_name or label_name in ["Loading...", "No labels found"]:
+                messagebox.showerror("Validation Error", "Please select a valid label.")
+                return
 
         # Confirmation for multiple users
         if len(users) > 1:
@@ -617,9 +684,20 @@ class EmailWindow(BaseOperationWindow):
         self.filter_delete_frame = ttk.Frame(params_frame)
         self.filter_delete_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
-        ttk.Label(self.filter_delete_frame, text="Filter ID:").pack(side=tk.LEFT, padx=(0, 5))
-        self.filter_id_entry = ttk.Entry(self.filter_delete_frame, width=30)
-        self.filter_id_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        # User email for filter lookup
+        user_row = ttk.Frame(self.filter_delete_frame)
+        user_row.pack(fill=tk.X, pady=(0, 5))
+        ttk.Label(user_row, text="User Email:").pack(side=tk.LEFT, padx=(0, 5))
+        self.filter_user_entry = ttk.Entry(user_row, width=30)
+        self.filter_user_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        ttk.Button(user_row, text="Load Filters", command=self.load_filters_for_user).pack(side=tk.LEFT)
+
+        # Filter ID dropdown
+        filter_row = ttk.Frame(self.filter_delete_frame)
+        filter_row.pack(fill=tk.X)
+        ttk.Label(filter_row, text="Filter ID:").pack(side=tk.LEFT, padx=(0, 5))
+        self.filter_id_combo = ttk.Combobox(filter_row, width=50, state='readonly')
+        self.filter_id_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         params_frame.grid_columnconfigure(0, weight=1)
 
@@ -648,6 +726,34 @@ class EmailWindow(BaseOperationWindow):
             self.filter_create_frame.grid_remove()
             self.filter_delete_frame.grid()
 
+    def load_filters_for_user(self):
+        """Load filters for the specified user."""
+        user_email = self.filter_user_entry.get().strip()
+        if not user_email:
+            messagebox.showerror("Validation Error", "Please enter a user email.")
+            return
+
+        # Set loading indicator
+        self.filter_id_combo['values'] = ["Loading..."]
+        self.filter_id_combo.set("Loading...")
+        self.update_idletasks()
+
+        def fetch_and_populate():
+            import modules.email as email_module
+            filters = email_module.list_filters(user_email)
+            if filters:
+                # Extract filter IDs from the tuples
+                filter_ids = [f[0] for f in filters]
+                self.after(0, lambda: self.filter_id_combo.configure(values=filter_ids))
+                self.after(0, lambda: self.filter_id_combo.set("" if filter_ids else "No filters found"))
+            else:
+                self.after(0, lambda: self.filter_id_combo.configure(values=["No filters found"]))
+                self.after(0, lambda: self.filter_id_combo.set("No filters found"))
+
+        # Run in background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_filters(self):
         """Execute filter operation."""
         if self.operation_running:
@@ -673,9 +779,9 @@ class EmailWindow(BaseOperationWindow):
                                    "Please provide at least one filter criteria (From, To, Subject, or Has Words).")
                 return
         else:
-            filter_id = self.filter_id_entry.get().strip()
-            if not filter_id:
-                messagebox.showerror("Validation Error", "Please enter a filter ID.")
+            filter_id = self.filter_id_combo.get().strip()
+            if not filter_id or filter_id in ["Loading...", "No filters found"]:
+                messagebox.showerror("Validation Error", "Please select a valid filter ID.")
                 return
 
         # Confirmation for multiple users

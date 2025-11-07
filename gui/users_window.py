@@ -301,11 +301,25 @@ class UsersWindow(BaseOperationWindow):
 
         # Execute
         dry_run = self.create_users_dry_run.get()
+
+        # Prepare success callback to clear fields (only for single mode and not dry run)
+        on_success = None
+        if mode == "single" and not dry_run:
+            on_success = lambda: self.clear_fields(
+                self.create_user_email,
+                self.create_user_firstname,
+                self.create_user_lastname,
+                self.create_user_password,
+                self.create_user_title,
+                self.create_user_phone
+            )
+
         self.run_operation(
             users_module.create_user,
             self.create_users_progress,
             users_data,
-            dry_run=dry_run
+            dry_run=dry_run,
+            on_success=on_success
         )
 
     # ==================== TAB 2: DELETE USERS ====================
@@ -1167,18 +1181,35 @@ class UsersWindow(BaseOperationWindow):
                 messagebox.showerror("Error", f"Failed to read CSV: {str(e)}")
                 return
 
+        # Prepare success callback to clear fields (only for single mode and not dry run)
+        on_success = None
+        if mode == "single" and not dry_run:
+            if action == 'add':
+                # For add action, clear both email and alias
+                on_success = lambda: self.clear_fields(
+                    self.manage_aliases_email,
+                    self.manage_aliases_alias
+                )
+            else:
+                # For remove action, only clear alias
+                on_success = lambda: self.clear_fields(
+                    self.manage_aliases_alias
+                )
+
         # Execute
         if action == 'add':
             self.run_operation(
                 users_module.add_alias,
                 self.manage_aliases_progress,
                 data,
-                dry_run=dry_run
+                dry_run=dry_run,
+                on_success=on_success
             )
         else:  # remove
             self.run_operation(
                 users_module.remove_alias,
                 self.manage_aliases_progress,
                 data,
-                dry_run=dry_run
+                dry_run=dry_run,
+                on_success=on_success
             )

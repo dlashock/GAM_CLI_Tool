@@ -79,7 +79,7 @@ def delete_messages(users, query, date_from=None, date_to=None, dry_run=False):
                 _get_gam_command(), 'user', user_email,
                 'delete', 'messages',
                 'query', full_query,
-                'trash', 'excludetrash'
+                'doit'
             ]
 
             # Execute command
@@ -99,7 +99,7 @@ def delete_messages(users, query, date_from=None, date_to=None, dry_run=False):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Delete Messages", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -177,7 +177,7 @@ def add_delegate(users, delegate_email):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Add Delegate", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -233,7 +233,7 @@ def remove_delegate(users, delegate_email):
         }
 
         try:
-            cmd = [_get_gam_command(), 'user', user_email, 'delegate', 'delete', delegate_email]
+            cmd = [_get_gam_command(), 'user', user_email, 'delete', 'delegate', delegate_email]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -245,7 +245,7 @@ def remove_delegate(users, delegate_email):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Remove Delegate", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -320,7 +320,7 @@ def set_signature(users, signature_html):
                     }
                 else:
                     failure_count += 1
-                    error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                    error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                     errors.append((user_email, error_msg))
                     log_error("Set Signature", f"Failed for {user_email}: {error_msg}")
                     yield {
@@ -370,47 +370,60 @@ def remove_signature(users):
     failure_count = 0
     errors = []
 
-    for i, user_email in enumerate(users, start=1):
-        yield {
-            "status": "processing",
-            "email": user_email,
-            "current": i,
-            "total": total,
-            "message": f"Removing signature for {user_email}..."
-        }
+    # Create temporary empty file for removing signatures
+    import tempfile
+    temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)
+    try:
+        # Write empty content
+        os.write(temp_fd, b'')
+        os.close(temp_fd)
 
-        try:
-            cmd = [_get_gam_command(), 'user', user_email, 'signature', '']
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        for i, user_email in enumerate(users, start=1):
+            yield {
+                "status": "processing",
+                "email": user_email,
+                "current": i,
+                "total": total,
+                "message": f"Removing signature for {user_email}..."
+            }
 
-            if result.returncode == 0:
-                success_count += 1
-                yield {
-                    "status": "success",
-                    "email": user_email,
-                    "message": f"✓ Removed signature for {user_email}"
-                }
-            else:
+            try:
+                cmd = [_get_gam_command(), 'user', user_email, 'signature', 'file', temp_path]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+                if result.returncode == 0:
+                    success_count += 1
+                    yield {
+                        "status": "success",
+                        "email": user_email,
+                        "message": f"✓ Removed signature for {user_email}"
+                    }
+                else:
+                    failure_count += 1
+                    error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
+                    errors.append((user_email, error_msg))
+                    log_error("Remove Signature", f"Failed for {user_email}: {error_msg}")
+                    yield {
+                        "status": "error",
+                        "email": user_email,
+                        "message": f"✗ Failed for {user_email}"
+                    }
+
+            except Exception as e:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = str(e)
                 errors.append((user_email, error_msg))
-                log_error("Remove Signature", f"Failed for {user_email}: {error_msg}")
+                log_error("Remove Signature", f"Exception for {user_email}: {error_msg}")
                 yield {
                     "status": "error",
                     "email": user_email,
-                    "message": f"✗ Failed for {user_email}"
+                    "message": f"✗ Error for {user_email}"
                 }
 
-        except Exception as e:
-            failure_count += 1
-            error_msg = str(e)
-            errors.append((user_email, error_msg))
-            log_error("Remove Signature", f"Exception for {user_email}: {error_msg}")
-            yield {
-                "status": "error",
-                "email": user_email,
-                "message": f"✗ Error for {user_email}"
-            }
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     return {
         "success_count": success_count,
@@ -448,7 +461,7 @@ def enable_forwarding(users, forward_to):
         }
 
         try:
-            cmd = [_get_gam_command(), 'user', user_email, 'forward', 'on', forward_to]
+            cmd = [_get_gam_command(), 'user', user_email, 'forward', 'on', forward_to, 'keep']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -460,7 +473,7 @@ def enable_forwarding(users, forward_to):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Enable Forwarding", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -527,7 +540,7 @@ def disable_forwarding(users):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Disable Forwarding", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -595,7 +608,7 @@ def create_label(users, label_name):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Create Label", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -663,7 +676,7 @@ def delete_label(users, label_name):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Delete Label", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -750,7 +763,7 @@ def create_filter(users, from_addr=None, to_addr=None, subject=None, has_words=N
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Create Filter", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -818,7 +831,7 @@ def delete_filter(users, filter_id):
                 }
             else:
                 failure_count += 1
-                error_msg = result.stderr[:200] if result.stderr else "Unknown error"
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
                 errors.append((user_email, error_msg))
                 log_error("Delete Filter", f"Failed for {user_email}: {error_msg}")
                 yield {
@@ -862,7 +875,7 @@ def list_filters(user_email):
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
         if result.returncode != 0:
-            log_error("List Filters", f"Failed for {user_email}: {result.stderr[:200]}")
+            log_error("List Filters", f"Failed for {user_email}: {result.stderr[:2000]}")
             return []
 
         # Parse output to extract filter IDs
@@ -880,4 +893,43 @@ def list_filters(user_email):
 
     except Exception as e:
         log_error("List Filters", f"Exception for {user_email}: {str(e)}")
+        return []
+
+
+def list_labels(user_email):
+    """
+    List all labels for a user.
+
+    This is a helper function for the GUI to populate label selection.
+
+    Args:
+        user_email (str): Email address of the user
+
+    Returns:
+        list: List of label names or empty list on error
+    """
+    try:
+        cmd = [_get_gam_command(), 'user', user_email, 'show', 'labels']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+        if result.returncode != 0:
+            log_error("List Labels", f"Failed for {user_email}: {result.stderr[:2000]}")
+            return []
+
+        # Parse output to extract label names
+        labels = []
+        lines = result.stdout.split('\n')
+
+        for line in lines:
+            # Look for label patterns - GAM typically shows label names
+            line = line.strip()
+            if line and not line.startswith('Getting') and not line.startswith('User:'):
+                # Simple approach: each non-empty line that's not a header is likely a label
+                if line and len(line) > 0:
+                    labels.append(line)
+
+        return labels
+
+    except Exception as e:
+        log_error("List Labels", f"Exception for {user_email}: {str(e)}")
         return []
