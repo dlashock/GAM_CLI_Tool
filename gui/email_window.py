@@ -250,12 +250,8 @@ class EmailWindow(BaseOperationWindow):
         params_frame = ttk.LabelFrame(tab, text="Signature Parameters", padding="10")
         params_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        # Action selection
+        # Action selection (set only)
         self.signature_action = tk.StringVar(value="set")
-        ttk.Radiobutton(params_frame, text="Set Signature", variable=self.signature_action,
-                       value="set", command=self.toggle_signature_input).grid(row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Radiobutton(params_frame, text="Remove Signature", variable=self.signature_action,
-                       value="remove", command=self.toggle_signature_input).grid(row=0, column=1, sticky=tk.W, pady=5)
 
         # Signature input method
         self.signature_input_frame = ttk.Frame(params_frame)
@@ -304,20 +300,8 @@ class EmailWindow(BaseOperationWindow):
         # Initial toggle
         self.toggle_signature_method()
 
-    def toggle_signature_input(self):
-        """Toggle signature input visibility based on action."""
-        if self.signature_action.get() == "set":
-            self.signature_input_frame.grid()
-            self.toggle_signature_method()
-        else:
-            self.signature_input_frame.grid_remove()
-            self.signature_text_frame.grid_remove()
-            self.signature_file_frame.grid_remove()
-
     def toggle_signature_method(self):
         """Toggle between text and file input for signature."""
-        if self.signature_action.get() == "remove":
-            return
 
         if self.signature_method.get() == "text":
             self.signature_text_frame.grid()
@@ -346,49 +330,38 @@ class EmailWindow(BaseOperationWindow):
         if not users:
             return
 
-        action = self.signature_action.get()
-
-        if action == "set":
-            # Get signature HTML
-            if self.signature_method.get() == "text":
-                signature_html = self.signature_text.get("1.0", tk.END).strip()
-                if not signature_html:
-                    messagebox.showerror("Validation Error", "Please enter signature HTML content.")
-                    return
-            else:
-                file_path = self.signature_file_entry.get().strip()
-                if not file_path:
-                    messagebox.showerror("Validation Error", "Please select a signature HTML file.")
-                    return
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        signature_html = f.read()
-                except Exception as e:
-                    messagebox.showerror("File Error", f"Failed to read file: {e}")
-                    return
+        # Get signature HTML
+        if self.signature_method.get() == "text":
+            signature_html = self.signature_text.get("1.0", tk.END).strip()
+            if not signature_html:
+                messagebox.showerror("Validation Error", "Please enter signature HTML content.")
+                return
+        else:
+            file_path = self.signature_file_entry.get().strip()
+            if not file_path:
+                messagebox.showerror("Validation Error", "Please select a signature HTML file.")
+                return
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    signature_html = f.read()
+            except Exception as e:
+                messagebox.showerror("File Error", f"Failed to read file: {e}")
+                return
 
         # Confirmation for multiple users
         if len(users) > 1:
-            action_text = "set signature for" if action == "set" else "remove signature from"
             if not messagebox.askyesno(
                 "Confirm Operation",
-                f"You are about to {action_text} {len(users)} users.\n\nProceed?"
+                f"You are about to set signature for {len(users)} users.\n\nProceed?"
             ):
                 return
 
         # Execute
-        if action == "set":
-            self.run_operation(
-                email_module.set_signature,
-                self.signatures_progress_frame,
-                users, signature_html
-            )
-        else:
-            self.run_operation(
-                email_module.remove_signature,
-                self.signatures_progress_frame,
-                users
-            )
+        self.run_operation(
+            email_module.set_signature,
+            self.signatures_progress_frame,
+            users, signature_html
+        )
 
     # ==================== TAB 4: MANAGE FORWARDING ====================
 
@@ -517,20 +490,13 @@ class EmailWindow(BaseOperationWindow):
         self.label_delete_frame = ttk.Frame(params_frame)
         self.label_delete_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
-        # User email for label lookup
-        user_row = ttk.Frame(self.label_delete_frame)
-        user_row.pack(fill=tk.X, pady=(0, 5))
-        ttk.Label(user_row, text="User Email:").pack(side=tk.LEFT, padx=(0, 5))
-        self.label_user_entry = ttk.Entry(user_row, width=30)
-        self.label_user_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        ttk.Button(user_row, text="Load Labels", command=self.load_labels_for_user).pack(side=tk.LEFT)
-
-        # Label dropdown
+        # Label dropdown with Load button
         label_row = ttk.Frame(self.label_delete_frame)
         label_row.pack(fill=tk.X)
         ttk.Label(label_row, text="Label:").pack(side=tk.LEFT, padx=(0, 5))
         self.label_name_combo = ttk.Combobox(label_row, width=50, state='readonly')
-        self.label_name_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.label_name_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        ttk.Button(label_row, text="Load Labels", command=self.load_labels_for_user).pack(side=tk.LEFT)
 
         params_frame.grid_columnconfigure(1, weight=1)
 
@@ -560,11 +526,13 @@ class EmailWindow(BaseOperationWindow):
             self.label_delete_frame.grid()
 
     def load_labels_for_user(self):
-        """Load labels for the specified user."""
-        user_email = self.label_user_entry.get().strip()
-        if not user_email:
-            messagebox.showerror("Validation Error", "Please enter a user email.")
+        """Load labels for the user from target selection."""
+        users = self.get_target_users("labels")
+        if not users:
             return
+
+        # Only use the first user for loading labels
+        user_email = users[0]
 
         # Set loading indicator
         self.label_name_combo['values'] = ["Loading..."]
@@ -684,20 +652,13 @@ class EmailWindow(BaseOperationWindow):
         self.filter_delete_frame = ttk.Frame(params_frame)
         self.filter_delete_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
-        # User email for filter lookup
-        user_row = ttk.Frame(self.filter_delete_frame)
-        user_row.pack(fill=tk.X, pady=(0, 5))
-        ttk.Label(user_row, text="User Email:").pack(side=tk.LEFT, padx=(0, 5))
-        self.filter_user_entry = ttk.Entry(user_row, width=30)
-        self.filter_user_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        ttk.Button(user_row, text="Load Filters", command=self.load_filters_for_user).pack(side=tk.LEFT)
-
-        # Filter ID dropdown
+        # Filter dropdown with Load button
         filter_row = ttk.Frame(self.filter_delete_frame)
         filter_row.pack(fill=tk.X)
-        ttk.Label(filter_row, text="Filter ID:").pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(filter_row, text="Filter:").pack(side=tk.LEFT, padx=(0, 5))
         self.filter_id_combo = ttk.Combobox(filter_row, width=50, state='readonly')
-        self.filter_id_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.filter_id_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        ttk.Button(filter_row, text="Load Filters", command=self.load_filters_for_user).pack(side=tk.LEFT)
 
         params_frame.grid_columnconfigure(0, weight=1)
 
@@ -727,11 +688,13 @@ class EmailWindow(BaseOperationWindow):
             self.filter_delete_frame.grid()
 
     def load_filters_for_user(self):
-        """Load filters for the specified user."""
-        user_email = self.filter_user_entry.get().strip()
-        if not user_email:
-            messagebox.showerror("Validation Error", "Please enter a user email.")
+        """Load filters for the user from target selection."""
+        users = self.get_target_users("filters")
+        if not users:
             return
+
+        # Only use the first user for loading filters
+        user_email = users[0]
 
         # Set loading indicator
         self.filter_id_combo['values'] = ["Loading..."]
@@ -742,11 +705,14 @@ class EmailWindow(BaseOperationWindow):
             import modules.email as email_module
             filters = email_module.list_filters(user_email)
             if filters:
-                # Extract filter IDs from the tuples
-                filter_ids = [f[0] for f in filters]
-                self.after(0, lambda: self.filter_id_combo.configure(values=filter_ids))
-                self.after(0, lambda: self.filter_id_combo.set("" if filter_ids else "No filters found"))
+                # Store filter data for later extraction
+                self.filter_data = filters
+                # Display filter with context: "ID: description"
+                filter_display = [f"{f[0]}: {f[1]}" if f[1] != f[0] else f[0] for f in filters]
+                self.after(0, lambda: self.filter_id_combo.configure(values=filter_display))
+                self.after(0, lambda: self.filter_id_combo.set("" if filter_display else "No filters found"))
             else:
+                self.filter_data = []
                 self.after(0, lambda: self.filter_id_combo.configure(values=["No filters found"]))
                 self.after(0, lambda: self.filter_id_combo.set("No filters found"))
 
@@ -779,10 +745,16 @@ class EmailWindow(BaseOperationWindow):
                                    "Please provide at least one filter criteria (From, To, Subject, or Has Words).")
                 return
         else:
-            filter_id = self.filter_id_combo.get().strip()
-            if not filter_id or filter_id in ["Loading...", "No filters found"]:
-                messagebox.showerror("Validation Error", "Please select a valid filter ID.")
+            filter_display = self.filter_id_combo.get().strip()
+            if not filter_display or filter_display in ["Loading...", "No filters found"]:
+                messagebox.showerror("Validation Error", "Please select a valid filter.")
                 return
+
+            # Extract filter ID from display string (format: "ID: description" or just "ID")
+            if ':' in filter_display:
+                filter_id = filter_display.split(':', 1)[0].strip()
+            else:
+                filter_id = filter_display
 
         # Confirmation for multiple users
         if len(users) > 1:
