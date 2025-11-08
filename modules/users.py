@@ -28,8 +28,6 @@ def create_user(users_data, dry_run=False):
                           - lastName (required)
                           - password (required)
                           - orgUnit (optional, default: /)
-                          - title (optional)
-                          - phone (optional)
         dry_run (bool): If True, preview without executing
 
     Yields:
@@ -49,8 +47,6 @@ def create_user(users_data, dry_run=False):
         last_name = user_data.get('lastName', '').strip()
         password = user_data.get('password', '').strip()
         org_unit = user_data.get('orgUnit', '/').strip()
-        title = user_data.get('title', '').strip()
-        phone = user_data.get('phone', '').strip()
 
         yield {
             'status': 'processing',
@@ -100,11 +96,6 @@ def create_user(users_data, dry_run=False):
                 'password', password,
                 'ou', org_unit
             ]
-
-            if title:
-                cmd.extend(['organization', 'title', title])
-            if phone:
-                cmd.extend(['phone', phone, 'type', 'work'])
 
             if dry_run:
                 yield {
@@ -484,15 +475,13 @@ def reset_password(users_data, dry_run=False):
 
 def update_user_info(users_data, dry_run=False):
     """
-    Update user information (name, title, phone, etc.).
+    Update user information (name, address, etc.).
 
     Args:
         users_data (list): List of dicts with keys:
                           - email (required)
                           - firstName (optional)
                           - lastName (optional)
-                          - title (optional)
-                          - phone (optional)
                           - address (optional)
         dry_run (bool): If True, preview without executing
 
@@ -526,10 +515,6 @@ def update_user_info(users_data, dry_run=False):
                 cmd.extend(['firstname', user_data['firstName'].strip()])
             if 'lastName' in user_data and user_data['lastName']:
                 cmd.extend(['lastname', user_data['lastName'].strip()])
-            if 'title' in user_data and user_data['title']:
-                cmd.extend(['organization', 'title', user_data['title'].strip()])
-            if 'phone' in user_data and user_data['phone']:
-                cmd.extend(['phone', user_data['phone'].strip(), 'type', 'work'])
             if 'address' in user_data and user_data['address']:
                 cmd.extend(['address', 'type', 'work', 'structured', user_data['address'].strip()])
 

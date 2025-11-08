@@ -461,6 +461,23 @@ def enable_forwarding(users, forward_to):
         }
 
         try:
+            # First, add the forwarding address to allowed forwarders
+            add_cmd = [_get_gam_command(), 'user', user_email, 'add', 'forwardingaddress', forward_to]
+            add_result = subprocess.run(add_cmd, capture_output=True, text=True, timeout=30)
+
+            if add_result.returncode != 0:
+                failure_count += 1
+                error_msg = add_result.stderr[:2000] if add_result.stderr else "Failed to add forwarding address"
+                errors.append((user_email, error_msg))
+                log_error("Enable Forwarding", f"Failed to add forwarding address for {user_email}: {error_msg}")
+                yield {
+                    "status": "error",
+                    "email": user_email,
+                    "message": f"✗ Failed to add forwarding address for {user_email}"
+                }
+                continue
+
+            # Then enable forwarding
             cmd = [_get_gam_command(), 'user', user_email, 'forward', 'on', forward_to, 'keep']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
@@ -878,16 +895,43 @@ def list_filters(user_email):
             log_error("List Filters", f"Failed for {user_email}: {result.stderr[:2000]}")
             return []
 
-        # Parse output to extract filter IDs
-        # GAM output format varies, so we'll return raw output for now
-        # GUI can parse or display as needed
+        # Parse output to extract filter IDs and criteria
         filters = []
         lines = result.stdout.split('\n')
 
+        current_filter_id = None
+        current_criteria = []
+
         for line in lines:
-            # Look for filter ID patterns (typically "Filter ID: xxx" or similar)
-            if 'filter' in line.lower() and ':' in line:
-                filters.append((line.strip(), line.strip()))
+            line = line.strip()
+            if not line:
+                continue
+
+            # Look for filter ID
+            if line.startswith('Filter:') or line.startswith('filter:'):
+                # Save previous filter if any
+                if current_filter_id:
+                    desc = ', '.join(current_criteria) if current_criteria else 'No criteria'
+                    filters.append((current_filter_id, desc))
+
+                # Start new filter
+                current_filter_id = line.split(':', 1)[1].strip()
+                current_criteria = []
+
+            # Look for filter criteria
+            elif current_filter_id:
+                if any(keyword in line.lower() for keyword in ['from:', 'to:', 'subject:', 'has:', 'label:']):
+                    # Extract criteria
+                    if ':' in line:
+                        criteria_parts = line.split(':', 1)
+                        criteria_name = criteria_parts[0].strip()
+                        criteria_value = criteria_parts[1].strip()
+                        current_criteria.append(f"{criteria_name}={criteria_value}")
+
+        # Add last filter
+        if current_filter_id:
+            desc = ', '.join(current_criteria) if current_criteria else 'No criteria'
+            filters.append((current_filter_id, desc))
 
         return filters
 

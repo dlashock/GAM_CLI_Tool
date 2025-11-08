@@ -1051,6 +1051,54 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             elif hasattr(widget, 'set'):  # Combobox or other widgets with set method
                 widget.set("")
 
+    def create_scrollable_frame(self, parent):
+        """
+        Create a scrollable frame container.
+
+        Args:
+            parent: Parent widget
+
+        Returns:
+            tuple: (container_frame, scrollable_frame) where:
+                - container_frame should be packed/gridded in parent
+                - scrollable_frame is where content should be added
+        """
+        # Create container
+        container = ttk.Frame(parent)
+
+        # Create canvas and scrollbar
+        canvas = tk.Canvas(container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        # Configure canvas scrolling
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Enable mousewheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def _bind_mousewheel(event):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        def _unbind_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+
+        canvas.bind('<Enter>', _bind_mousewheel)
+        canvas.bind('<Leave>', _unbind_mousewheel)
+
+        # Pack components
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        return container, scrollable_frame
+
     def cancel_operation(self):
         """Cancel the currently running operation."""
         if self.operation_running:
