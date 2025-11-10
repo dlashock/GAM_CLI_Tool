@@ -475,13 +475,19 @@ def reset_password(users_data, dry_run=False):
 
 def update_user_info(users_data, dry_run=False):
     """
-    Update user information (name, address, etc.).
+    Update user information (name, address, employee info, etc.).
 
     Args:
         users_data (list): List of dicts with keys:
                           - email (required)
                           - firstName (optional)
                           - lastName (optional)
+                          - employeeId (optional)
+                          - jobTitle (optional)
+                          - manager (optional)
+                          - department (optional)
+                          - costCenter (optional)
+                          - buildingId (optional)
                           - address (optional)
         dry_run (bool): If True, preview without executing
 
@@ -515,8 +521,20 @@ def update_user_info(users_data, dry_run=False):
                 cmd.extend(['firstname', user_data['firstName'].strip()])
             if 'lastName' in user_data and user_data['lastName']:
                 cmd.extend(['lastname', user_data['lastName'].strip()])
+            if 'employeeId' in user_data and user_data['employeeId']:
+                cmd.extend(['externalid', 'organization', user_data['employeeId'].strip()])
+            if 'jobTitle' in user_data and user_data['jobTitle']:
+                cmd.extend(['organization', 'title', user_data['jobTitle'].strip()])
+            if 'manager' in user_data and user_data['manager']:
+                cmd.extend(['relation', 'manager', user_data['manager'].strip()])
+            if 'department' in user_data and user_data['department']:
+                cmd.extend(['organization', 'department', user_data['department'].strip()])
+            if 'costCenter' in user_data and user_data['costCenter']:
+                cmd.extend(['organization', 'costcenter', user_data['costCenter'].strip()])
+            if 'buildingId' in user_data and user_data['buildingId']:
+                cmd.extend(['location', 'buildingid', user_data['buildingId'].strip()])
             if 'address' in user_data and user_data['address']:
-                cmd.extend(['address', 'type', 'work', 'structured', user_data['address'].strip()])
+                cmd.extend(['address', 'type', 'work', 'unstructured', user_data['address'].strip()])
 
             # Check if any updates provided
             if len(cmd) == 4:  # Only [gam, update, user, email]
@@ -914,3 +932,325 @@ def list_user_aliases(user_email):
         error_msg = str(e)
         log_error("List Aliases", f"Exception for {user_email}: {error_msg}")
         return (False, error_msg)
+
+
+def list_org_units():
+    """
+    List all organizational units.
+
+    Returns:
+        list: List of org unit paths, or empty list on error
+    """
+    try:
+        cmd = [get_gam_command(), 'print', 'orgs']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+        if result.returncode == 0:
+            # Parse org units from output
+            import csv
+            from io import StringIO
+            orgs = []
+            csv_reader = csv.DictReader(StringIO(result.stdout))
+
+            for row in csv_reader:
+                org_path = row.get('orgUnitPath') or row.get('Path') or row.get('path')
+                if org_path:
+                    orgs.append(org_path.strip())
+
+            # Always include root
+            if '/' not in orgs:
+                orgs.insert(0, '/')
+
+            return orgs
+        else:
+            log_error("List OUs", f"Failed: {result.stderr[:200]}")
+            return ['/']
+
+    except Exception as e:
+        log_error("List OUs", f"Exception: {str(e)}")
+        return ['/']
+
+
+# ==================== MFA MANAGEMENT ====================
+
+def enable_mfa(users):
+    """
+    Enable Multi-Factor Authentication (MFA) for users.
+
+    Args:
+        users (list): List of user emails
+
+    Yields:
+        dict: Progress updates
+
+    Returns:
+        dict: Summary with success/failure counts
+    """
+    total = len(users)
+    success_count = 0
+    failure_count = 0
+    errors = []
+
+    for i, user_email in enumerate(users, start=1):
+        yield {
+            'status': 'processing',
+            'email': user_email,
+            'current': i,
+            'total': total,
+            'message': f"Enabling MFA for {user_email}..."
+        }
+
+        try:
+            cmd = [get_gam_command(), 'update', 'user', user_email, 'enroll2sv']
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode == 0:
+                success_count += 1
+                yield {
+                    'status': 'success',
+                    'email': user_email,
+                    'message': f"✓ Enabled MFA for {user_email}"
+                }
+            else:
+                failure_count += 1
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
+                errors.append((user_email, error_msg))
+                log_error("Enable MFA", f"Failed for {user_email}: {error_msg}")
+                yield {
+                    'status': 'error',
+                    'email': user_email,
+                    'message': f"✗ Failed to enable MFA for {user_email}"
+                }
+
+        except Exception as e:
+            failure_count += 1
+            error_msg = str(e)
+            errors.append((user_email, error_msg))
+            log_error("Enable MFA", f"Exception for {user_email}: {error_msg}")
+            yield {
+                'status': 'error',
+                'email': user_email,
+                'message': f"✗ Error enabling MFA for {user_email}"
+            }
+
+    return {
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'errors': errors
+    }
+
+
+def disable_mfa(users):
+    """
+    Disable Multi-Factor Authentication (MFA) for users.
+
+    Args:
+        users (list): List of user emails
+
+    Yields:
+        dict: Progress updates
+
+    Returns:
+        dict: Summary with success/failure counts
+    """
+    total = len(users)
+    success_count = 0
+    failure_count = 0
+    errors = []
+
+    for i, user_email in enumerate(users, start=1):
+        yield {
+            'status': 'processing',
+            'email': user_email,
+            'current': i,
+            'total': total,
+            'message': f"Disabling MFA for {user_email}..."
+        }
+
+        try:
+            cmd = [get_gam_command(), 'update', 'user', user_email, 'turn2svoff']
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode == 0:
+                success_count += 1
+                yield {
+                    'status': 'success',
+                    'email': user_email,
+                    'message': f"✓ Disabled MFA for {user_email}"
+                }
+            else:
+                failure_count += 1
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
+                errors.append((user_email, error_msg))
+                log_error("Disable MFA", f"Failed for {user_email}: {error_msg}")
+                yield {
+                    'status': 'error',
+                    'email': user_email,
+                    'message': f"✗ Failed to disable MFA for {user_email}"
+                }
+
+        except Exception as e:
+            failure_count += 1
+            error_msg = str(e)
+            errors.append((user_email, error_msg))
+            log_error("Disable MFA", f"Exception for {user_email}: {error_msg}")
+            yield {
+                'status': 'error',
+                'email': user_email,
+                'message': f"✗ Error disabling MFA for {user_email}"
+            }
+
+    return {
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'errors': errors
+    }
+
+
+def remove_mfa_factor(users):
+    """
+    Remove MFA enrollment/factors for users.
+
+    Args:
+        users (list): List of user emails
+
+    Yields:
+        dict: Progress updates
+
+    Returns:
+        dict: Summary with success/failure counts
+    """
+    total = len(users)
+    success_count = 0
+    failure_count = 0
+    errors = []
+
+    for i, user_email in enumerate(users, start=1):
+        yield {
+            'status': 'processing',
+            'email': user_email,
+            'current': i,
+            'total': total,
+            'message': f"Removing MFA factor for {user_email}..."
+        }
+
+        try:
+            cmd = [get_gam_command(), 'user', user_email, 'remove2sv']
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode == 0:
+                success_count += 1
+                yield {
+                    'status': 'success',
+                    'email': user_email,
+                    'message': f"✓ Removed MFA factor for {user_email}"
+                }
+            else:
+                failure_count += 1
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
+                errors.append((user_email, error_msg))
+                log_error("Remove MFA Factor", f"Failed for {user_email}: {error_msg}")
+                yield {
+                    'status': 'error',
+                    'email': user_email,
+                    'message': f"✗ Failed to remove MFA factor for {user_email}"
+                }
+
+        except Exception as e:
+            failure_count += 1
+            error_msg = str(e)
+            errors.append((user_email, error_msg))
+            log_error("Remove MFA Factor", f"Exception for {user_email}: {error_msg}")
+            yield {
+                'status': 'error',
+                'email': user_email,
+                'message': f"✗ Error removing MFA factor for {user_email}"
+            }
+
+    return {
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'errors': errors
+    }
+
+
+def get_backup_codes(users):
+    """
+    Retrieve MFA backup verification codes for users.
+
+    Args:
+        users (list): List of user emails
+
+    Yields:
+        dict: Progress updates
+
+    Returns:
+        dict: Summary with success/failure counts
+    """
+    total = len(users)
+    success_count = 0
+    failure_count = 0
+    errors = []
+
+    for i, user_email in enumerate(users, start=1):
+        yield {
+            'status': 'processing',
+            'email': user_email,
+            'current': i,
+            'total': total,
+            'message': f"Retrieving backup codes for {user_email}..."
+        }
+
+        try:
+            cmd = [get_gam_command(), 'user', user_email, 'show', 'backupcodes']
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode == 0:
+                success_count += 1
+                # Extract backup codes from output
+                backup_codes = []
+                for line in result.stdout.split('\n'):
+                    line = line.strip()
+                    if line and line[0].isdigit():
+                        backup_codes.append(line)
+
+                if backup_codes:
+                    codes_str = ', '.join(backup_codes)
+                    yield {
+                        'status': 'success',
+                        'email': user_email,
+                        'message': f"✓ Backup codes for {user_email}: {codes_str}"
+                    }
+                else:
+                    yield {
+                        'status': 'success',
+                        'email': user_email,
+                        'message': f"✓ Retrieved info for {user_email} (see full output in logs)"
+                    }
+            else:
+                failure_count += 1
+                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
+                errors.append((user_email, error_msg))
+                log_error("Get Backup Codes", f"Failed for {user_email}: {error_msg}")
+                yield {
+                    'status': 'error',
+                    'email': user_email,
+                    'message': f"✗ Failed to get backup codes for {user_email}"
+                }
+
+        except Exception as e:
+            failure_count += 1
+            error_msg = str(e)
+            errors.append((user_email, error_msg))
+            log_error("Get Backup Codes", f"Exception for {user_email}: {error_msg}")
+            yield {
+                'status': 'error',
+                'email': user_email,
+                'message': f"✗ Error getting backup codes for {user_email}"
+            }
+
+    return {
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'errors': errors
+    }
