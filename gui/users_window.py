@@ -327,6 +327,28 @@ class UsersWindow(BaseOperationWindow):
         self.delete_users_target = self.create_single_user_target_selection_frame(tab, 'delete_users')
         self.delete_users_target.pack(fill=tk.X, pady=(0, 10))
 
+        # Drive transfer option
+        drive_frame = ttk.LabelFrame(tab, text="Drive Ownership Transfer (Optional)", padding="10")
+        drive_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(drive_frame, text="Transfer Drive files to:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+
+        target_email_frame = ttk.Frame(drive_frame)
+        target_email_frame.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        self.delete_drive_target = ttk.Combobox(target_email_frame)
+        self.delete_drive_target.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            target_email_frame,
+            text="Load Users",
+            command=self.load_users_for_delete_drive
+        ).pack(side=tk.LEFT)
+
+        ttk.Label(drive_frame, text="(Leave blank to skip Drive transfer)", font=('Arial', 8), foreground='gray').grid(row=1, column=1, sticky=tk.W)
+
+        drive_frame.grid_columnconfigure(1, weight=1)
+
         # Progress frame
         self.delete_users_progress = self.create_progress_frame(tab)
         self.delete_users_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
@@ -350,17 +372,42 @@ class UsersWindow(BaseOperationWindow):
             variable=self.delete_users_dry_run
         ).pack(side=tk.LEFT)
 
+    def load_users_for_delete_drive(self):
+        """Load users for the delete Drive transfer dropdown."""
+        self.delete_drive_target['values'] = ["Loading..."]
+        self.delete_drive_target.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.delete_drive_target.configure(values=sorted(users)))
+                self.after(0, lambda: self.delete_drive_target.set(""))
+            else:
+                self.after(0, lambda: self.delete_drive_target.configure(values=[]))
+                self.after(0, lambda: self.delete_drive_target.set(""))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_delete_users(self):
         """Execute delete users operation."""
         users = self.get_target_users('delete_users')
         if users is None:
             return
 
+        # Get Drive transfer target if specified
+        drive_target = self.delete_drive_target.get().strip()
+
         # Extra confirmation for delete
+        confirm_msg = f"Are you absolutely sure you want to DELETE {len(users)} user(s)?\n\n"
+        if drive_target:
+            confirm_msg += f"Drive files will be transferred to: {drive_target}\n\n"
+        confirm_msg += "This action CANNOT be undone!"
+
         response = messagebox.askyesno(
             "Confirm Deletion",
-            f"Are you absolutely sure you want to DELETE {len(users)} user(s)?\n\n"
-            "This action CANNOT be undone!",
+            confirm_msg,
             icon='warning'
         )
         if not response:
@@ -371,7 +418,8 @@ class UsersWindow(BaseOperationWindow):
             users_module.delete_user,
             self.delete_users_progress,
             users,
-            dry_run=dry_run
+            dry_run=dry_run,
+            drive_target=drive_target if drive_target else None
         )
 
     # ==================== TAB 3: SUSPEND/RESTORE USERS ====================
@@ -412,6 +460,46 @@ class UsersWindow(BaseOperationWindow):
         self.suspend_restore_target = self.create_single_user_target_selection_frame(tab, 'suspend_restore')
         self.suspend_restore_target.pack(fill=tk.X, pady=(0, 10))
 
+        # Suspend options frame (only visible when suspending)
+        self.suspend_options_frame = ttk.LabelFrame(tab, text="Suspend Options (Optional)", padding="10")
+        self.suspend_options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Drive transfer option
+        ttk.Label(self.suspend_options_frame, text="Transfer Drive files to:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+
+        drive_email_frame = ttk.Frame(self.suspend_options_frame)
+        drive_email_frame.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        self.suspend_drive_target = ttk.Combobox(drive_email_frame)
+        self.suspend_drive_target.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            drive_email_frame,
+            text="Load Users",
+            command=self.load_users_for_suspend_drive
+        ).pack(side=tk.LEFT)
+
+        ttk.Label(self.suspend_options_frame, text="(Leave blank to skip Drive transfer)", font=('Arial', 8), foreground='gray').grid(row=1, column=1, sticky=tk.W)
+
+        # OU move option
+        ttk.Label(self.suspend_options_frame, text="Move to OU:").grid(row=2, column=0, sticky=tk.W, pady=(10, 5), padx=(0, 5))
+
+        ou_frame = ttk.Frame(self.suspend_options_frame)
+        ou_frame.grid(row=2, column=1, sticky=tk.EW, pady=(10, 5))
+
+        self.suspend_target_ou = ttk.Combobox(ou_frame, values=["/"])
+        self.suspend_target_ou.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            ou_frame,
+            text="Load OUs",
+            command=self.load_ous_for_suspend
+        ).pack(side=tk.LEFT)
+
+        ttk.Label(self.suspend_options_frame, text="(Leave blank to keep current OU)", font=('Arial', 8), foreground='gray').grid(row=3, column=1, sticky=tk.W)
+
+        self.suspend_options_frame.grid_columnconfigure(1, weight=1)
+
         # Progress frame
         self.suspend_restore_progress = self.create_progress_frame(tab)
         self.suspend_restore_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
@@ -435,6 +523,42 @@ class UsersWindow(BaseOperationWindow):
             variable=self.suspend_restore_dry_run
         ).pack(side=tk.LEFT)
 
+    def load_users_for_suspend_drive(self):
+        """Load users for the suspend Drive transfer dropdown."""
+        self.suspend_drive_target['values'] = ["Loading..."]
+        self.suspend_drive_target.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.suspend_drive_target.configure(values=sorted(users)))
+                self.after(0, lambda: self.suspend_drive_target.set(""))
+            else:
+                self.after(0, lambda: self.suspend_drive_target.configure(values=[]))
+                self.after(0, lambda: self.suspend_drive_target.set(""))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def load_ous_for_suspend(self):
+        """Load OUs for the suspend OU move dropdown."""
+        self.suspend_target_ou['values'] = ["Loading..."]
+        self.suspend_target_ou.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_org_units
+            ous = fetch_org_units()
+            if ous:
+                self.after(0, lambda: self.suspend_target_ou.configure(values=sorted(ous)))
+                self.after(0, lambda: self.suspend_target_ou.set("/"))
+            else:
+                self.after(0, lambda: self.suspend_target_ou.configure(values=["/", "No OUs found"]))
+                self.after(0, lambda: self.suspend_target_ou.set("/"))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
     def execute_suspend_restore(self):
         """Execute suspend/restore operation."""
         users = self.get_target_users('suspend_restore')
@@ -445,11 +569,17 @@ class UsersWindow(BaseOperationWindow):
         dry_run = self.suspend_restore_dry_run.get()
 
         if action == 'suspend':
+            # Get optional parameters for suspend
+            drive_target = self.suspend_drive_target.get().strip()
+            target_ou = self.suspend_target_ou.get().strip()
+
             self.run_operation(
                 users_module.suspend_user,
                 self.suspend_restore_progress,
                 users,
-                dry_run=dry_run
+                dry_run=dry_run,
+                drive_target=drive_target if drive_target else None,
+                target_ou=target_ou if target_ou and target_ou != "/" else None
             )
         else:
             self.run_operation(

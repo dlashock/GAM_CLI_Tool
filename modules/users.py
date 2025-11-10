@@ -144,15 +144,16 @@ def create_user(users_data, dry_run=False):
     }
 
 
-def delete_user(users, dry_run=False):
+def delete_user(users, dry_run=False, drive_target=None):
     """
-    Delete user accounts.
+    Delete user accounts with optional Drive ownership transfer.
 
     WARNING: This permanently deletes users. Use with caution.
 
     Args:
         users (list): List of user emails to delete
         dry_run (bool): If True, preview without executing
+        drive_target (str, optional): Email address to transfer Drive files to
 
     Yields:
         dict: Progress updates
@@ -166,6 +167,33 @@ def delete_user(users, dry_run=False):
     errors = []
 
     for i, user_email in enumerate(users, start=1):
+        # Handle Drive transfer first if specified
+        if drive_target and not dry_run:
+            yield {
+                'status': 'processing',
+                'email': user_email,
+                'current': i,
+                'total': total,
+                'message': f"Transferring Drive files from {user_email} to {drive_target}..."
+            }
+
+            try:
+                transfer_cmd = [get_gam_command(), 'user', user_email, 'transfer', 'drive', drive_target]
+                transfer_result = subprocess.run(transfer_cmd, capture_output=True, text=True, timeout=120)
+
+                if transfer_result.returncode != 0:
+                    yield {
+                        'status': 'warning',
+                        'email': user_email,
+                        'message': f"⚠ Drive transfer failed for {user_email}, continuing with deletion..."
+                    }
+            except Exception as e:
+                yield {
+                    'status': 'warning',
+                    'email': user_email,
+                    'message': f"⚠ Drive transfer error for {user_email}: {str(e)}"
+                }
+
         yield {
             'status': 'processing',
             'email': user_email,
@@ -178,10 +206,13 @@ def delete_user(users, dry_run=False):
             cmd = [get_gam_command(), 'delete', 'user', user_email]
 
             if dry_run:
+                msg = f"[DRY RUN] Would delete user: {user_email}"
+                if drive_target:
+                    msg += f" (Drive transfer to {drive_target})"
                 yield {
                     'status': 'dry-run',
                     'email': user_email,
-                    'message': f"[DRY RUN] Would delete user: {user_email}"
+                    'message': msg
                 }
                 success_count += 1
                 continue
@@ -224,13 +255,15 @@ def delete_user(users, dry_run=False):
     }
 
 
-def suspend_user(users, dry_run=False):
+def suspend_user(users, dry_run=False, drive_target=None, target_ou=None):
     """
-    Suspend user accounts.
+    Suspend user accounts with optional Drive transfer and OU move.
 
     Args:
         users (list): List of user emails to suspend
         dry_run (bool): If True, preview without executing
+        drive_target (str, optional): Email address to transfer Drive files to
+        target_ou (str, optional): OU path to move users to
 
     Yields:
         dict: Progress updates
@@ -244,6 +277,60 @@ def suspend_user(users, dry_run=False):
     errors = []
 
     for i, user_email in enumerate(users, start=1):
+        # Handle Drive transfer first if specified
+        if drive_target and not dry_run:
+            yield {
+                'status': 'processing',
+                'email': user_email,
+                'current': i,
+                'total': total,
+                'message': f"Transferring Drive files from {user_email} to {drive_target}..."
+            }
+
+            try:
+                transfer_cmd = [get_gam_command(), 'user', user_email, 'transfer', 'drive', drive_target]
+                transfer_result = subprocess.run(transfer_cmd, capture_output=True, text=True, timeout=120)
+
+                if transfer_result.returncode != 0:
+                    yield {
+                        'status': 'warning',
+                        'email': user_email,
+                        'message': f"⚠ Drive transfer failed for {user_email}, continuing with suspension..."
+                    }
+            except Exception as e:
+                yield {
+                    'status': 'warning',
+                    'email': user_email,
+                    'message': f"⚠ Drive transfer error for {user_email}: {str(e)}"
+                }
+
+        # Handle OU move if specified
+        if target_ou and not dry_run:
+            yield {
+                'status': 'processing',
+                'email': user_email,
+                'current': i,
+                'total': total,
+                'message': f"Moving {user_email} to OU {target_ou}..."
+            }
+
+            try:
+                ou_cmd = [get_gam_command(), 'update', 'user', user_email, 'ou', target_ou]
+                ou_result = subprocess.run(ou_cmd, capture_output=True, text=True, timeout=30)
+
+                if ou_result.returncode != 0:
+                    yield {
+                        'status': 'warning',
+                        'email': user_email,
+                        'message': f"⚠ OU move failed for {user_email}, continuing with suspension..."
+                    }
+            except Exception as e:
+                yield {
+                    'status': 'warning',
+                    'email': user_email,
+                    'message': f"⚠ OU move error for {user_email}: {str(e)}"
+                }
+
         yield {
             'status': 'processing',
             'email': user_email,
@@ -256,10 +343,15 @@ def suspend_user(users, dry_run=False):
             cmd = [get_gam_command(), 'update', 'user', user_email, 'suspended', 'on']
 
             if dry_run:
+                msg = f"[DRY RUN] Would suspend user: {user_email}"
+                if drive_target:
+                    msg += f" (Drive transfer to {drive_target})"
+                if target_ou:
+                    msg += f" (Move to OU {target_ou})"
                 yield {
                     'status': 'dry-run',
                     'email': user_email,
-                    'message': f"[DRY RUN] Would suspend user: {user_email}"
+                    'message': msg
                 }
                 success_count += 1
                 continue
