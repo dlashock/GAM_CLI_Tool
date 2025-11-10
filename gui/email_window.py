@@ -44,27 +44,22 @@ class EmailWindow(BaseOperationWindow):
         self.create_labels_tab()
         self.create_filters_tab()
 
+        # Auto-load comboboxes on window initialization
+        self.after(100, self.initialize_comboboxes)
+
     # ==================== TAB 1: DELETE MESSAGES ====================
 
     def create_delete_messages_tab(self):
         """Create the Delete Messages tab."""
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Delete Messages")
 
-        # Create scrollable container
-        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
-        scroll_container.pack(fill=tk.BOTH, expand=True)
-
-        # Add padding to scrollable frame
-        content = ttk.Frame(scroll_frame, padding="10")
-        content.pack(fill=tk.BOTH, expand=True)
-
         # Target selection
-        target_frame = self.create_target_selection_frame(content, "delete_msg")
+        target_frame = self.create_target_selection_frame(tab, "delete_msg")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(content, text="Delete Parameters", padding="10")
+        params_frame = ttk.LabelFrame(tab, text="Delete Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Query string
@@ -112,7 +107,7 @@ class EmailWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Progress and results
-        self.delete_progress_frame = self.create_progress_frame(content)
+        self.delete_progress_frame = self.create_progress_frame(tab)
         self.delete_progress_frame.pack(fill=tk.BOTH, expand=True)
 
     def execute_delete_messages(self):
@@ -185,23 +180,15 @@ class EmailWindow(BaseOperationWindow):
 
     def create_delegates_tab(self):
         """Create the Manage Delegates tab."""
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Delegates")
 
-        # Create scrollable container
-        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
-        scroll_container.pack(fill=tk.BOTH, expand=True)
-
-        # Add padding to scrollable frame
-        content = ttk.Frame(scroll_frame, padding="10")
-        content.pack(fill=tk.BOTH, expand=True)
-
         # Target selection (simplified - no "All Users" or "Group")
-        target_frame = self.create_single_user_target_selection_frame(content, "delegates")
+        target_frame = self.create_single_user_target_selection_frame(tab, "delegates")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(content, text="Delegate Parameters", padding="10")
+        params_frame = ttk.LabelFrame(tab, text="Delegate Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Action selection
@@ -237,7 +224,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.delegates_progress_frame = self.create_progress_frame(content)
+        self.delegates_progress_frame = self.create_progress_frame(tab)
         self.delegates_progress_frame.pack(fill=tk.BOTH, expand=True)
 
     def load_users_for_delegates(self):
@@ -302,23 +289,15 @@ class EmailWindow(BaseOperationWindow):
 
     def create_signatures_tab(self):
         """Create the Manage Signatures tab."""
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Signatures")
 
-        # Create scrollable container
-        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
-        scroll_container.pack(fill=tk.BOTH, expand=True)
-
-        # Add padding to scrollable frame
-        content = ttk.Frame(scroll_frame, padding="10")
-        content.pack(fill=tk.BOTH, expand=True)
-
         # Target selection
-        target_frame = self.create_target_selection_frame(content, "signatures")
+        target_frame = self.create_target_selection_frame(tab, "signatures")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(content, text="Signature Parameters", padding="10")
+        params_frame = ttk.LabelFrame(tab, text="Signature Parameters", padding="10")
         params_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Action selection (set only)
@@ -365,7 +344,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.signatures_progress_frame = self.create_progress_frame(content)
+        self.signatures_progress_frame = self.create_progress_frame(tab)
         self.signatures_progress_frame.pack(fill=tk.BOTH, expand=True)
 
         # Initial toggle
@@ -438,23 +417,15 @@ class EmailWindow(BaseOperationWindow):
 
     def create_forwarding_tab(self):
         """Create the Manage Forwarding tab."""
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Forwarding")
 
-        # Create scrollable container
-        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
-        scroll_container.pack(fill=tk.BOTH, expand=True)
-
-        # Add padding to scrollable frame
-        content = ttk.Frame(scroll_frame, padding="10")
-        content.pack(fill=tk.BOTH, expand=True)
-
         # Target selection (simplified - no "All Users" or "Group")
-        target_frame = self.create_single_user_target_selection_frame(content, "forwarding")
+        target_frame = self.create_single_user_target_selection_frame(tab, "forwarding")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(content, text="Forwarding Parameters", padding="10")
+        params_frame = ttk.LabelFrame(tab, text="Forwarding Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Action selection
@@ -484,7 +455,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.forwarding_progress_frame = self.create_progress_frame(content)
+        self.forwarding_progress_frame = self.create_progress_frame(tab)
         self.forwarding_progress_frame.pack(fill=tk.BOTH, expand=True)
 
     def toggle_forwarding_input(self):
@@ -539,23 +510,15 @@ class EmailWindow(BaseOperationWindow):
 
     def create_labels_tab(self):
         """Create the Manage Labels tab."""
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Labels")
 
-        # Create scrollable container
-        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
-        scroll_container.pack(fill=tk.BOTH, expand=True)
-
-        # Add padding to scrollable frame
-        content = ttk.Frame(scroll_frame, padding="10")
-        content.pack(fill=tk.BOTH, expand=True)
-
         # Target selection
-        target_frame = self.create_target_selection_frame(content, "labels")
+        target_frame = self.create_target_selection_frame(tab, "labels")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(content, text="Label Parameters", padding="10")
+        params_frame = ttk.LabelFrame(tab, text="Label Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Action selection
@@ -597,7 +560,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.labels_progress_frame = self.create_progress_frame(content)
+        self.labels_progress_frame = self.create_progress_frame(tab)
         self.labels_progress_frame.pack(fill=tk.BOTH, expand=True)
 
         # Initial toggle
@@ -711,23 +674,15 @@ class EmailWindow(BaseOperationWindow):
 
     def create_filters_tab(self):
         """Create the Manage Filters tab."""
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab, text="Manage Filters")
 
-        # Create scrollable container
-        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
-        scroll_container.pack(fill=tk.BOTH, expand=True)
-
-        # Add padding to scrollable frame
-        content = ttk.Frame(scroll_frame, padding="10")
-        content.pack(fill=tk.BOTH, expand=True)
-
         # Target selection
-        target_frame = self.create_target_selection_frame(content, "filters")
+        target_frame = self.create_target_selection_frame(tab, "filters")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(content, text="Filter Parameters", padding="10")
+        params_frame = ttk.LabelFrame(tab, text="Filter Parameters", padding="10")
         params_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Action selection
@@ -787,7 +742,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.filters_progress_frame = self.create_progress_frame(content)
+        self.filters_progress_frame = self.create_progress_frame(tab)
         self.filters_progress_frame.pack(fill=tk.BOTH, expand=True)
 
         # Initial toggle
@@ -913,3 +868,10 @@ class EmailWindow(BaseOperationWindow):
                 self.filters_progress_frame,
                 users, filter_id
             )
+
+    # ==================== COMBOBOX INITIALIZATION ====================
+
+    def initialize_comboboxes(self):
+        """Auto-load all comboboxes on window initialization."""
+        # Load users for delegates combobox
+        self.load_users_for_delegates()

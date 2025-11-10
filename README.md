@@ -1,6 +1,6 @@
 # GAM Admin Tool
 
-A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/GAM) that simplifies common Google Workspace administrative tasks. This tool provides an intuitive, point-and-click interface for managing email operations, users, groups, and more.
+A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/GAM) that simplifies common Google Workspace administrative tasks. **Specifically designed for K-12 educational environments**, this tool provides an intuitive, point-and-click interface for managing email operations, users, groups, and more, though it can be utilized anywhere Google Workspace is in use.
 
 ![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -57,13 +57,7 @@ A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/G
 
 ## Installation
 
-### Option 1: Download Executable (Recommended for Windows)
-
-1. Download `GAM_Admin_Tool.exe` from the [Releases](../../releases) page
-2. Double-click to run (no installation required)
-3. Windows may show a security warning - click "More info" → "Run anyway"
-
-### Option 2: Run from Source (All Platforms)
+### Run from Source
 
 ```bash
 # Clone the repository
@@ -76,6 +70,8 @@ pip install -r requirements.txt
 # Run the application
 python3 main.py
 ```
+
+**Note**: Platform-specific installers (Windows .exe, macOS .app, Linux binary) will be available in future releases.
 
 ## Usage
 
@@ -117,28 +113,6 @@ user3@yourdomain.com
 - Header row must contain `email` column (case-sensitive)
 - One email address per row
 - UTF-8 encoding
-
-### Example Operations
-
-**Delete old emails:**
-1. Select "Email Operations" → "Delete Messages" tab
-2. Choose target (CSV, All Users, etc.)
-3. Enter query: `older_than:2y`
-4. Click "Execute Delete"
-
-**Add delegate access:**
-1. Select "Email Operations" → "Manage Delegates" tab
-2. Choose "Add Delegate"
-3. Enter delegate email
-4. Select target users
-5. Click "Execute"
-
-**Set email signature:**
-1. Select "Email Operations" → "Manage Signatures" tab
-2. Choose "Set Signature"
-3. Either enter HTML or upload file
-4. Select target users
-5. Click "Execute"
 
 ## Building from Source
 
@@ -212,81 +186,6 @@ gam info domain  # Verify authentication
 **Cause**: Normal for large user lists
 **Note**: The application uses threading to stay responsive. Large operations may take time but the GUI should remain interactive. Monitor the progress bar and results window.
 
-## Architecture
-
-```
-GAM_Admin_Tool/
-├── main.py                 # Application entry point
-├── gui/                    # GUI modules
-│   ├── main_window.py     # Main menu
-│   ├── email_window.py    # Email operations (1,102 lines)
-│   └── [other]_window.py  # Placeholder modules
-├── modules/                # Backend logic
-│   └── email.py           # Email operations backend (995 lines)
-├── utils/                  # Utility modules
-│   ├── gam_check.py       # GAM version/auth verification
-│   ├── logger.py          # Error logging
-│   ├── workspace_data.py  # User/group data fetching
-│   └── csv_handler.py     # CSV file operations
-└── assets/                 # Resources (icon, etc.)
-```
-
-### Technology Stack
-
-- **GUI Framework**: tkinter (Python standard library)
-- **Backend**: subprocess for GAM command execution
-- **Threading**: queue-based for responsive GUI
-- **Packaging**: PyInstaller for standalone executables
-
-## Development
-
-### Running Tests
-
-```bash
-# Test foundation layer
-python3 test_foundation.py
-
-# Test email backend
-python3 test_email_module.py
-
-# Test email GUI structure
-python3 test_email_gui.py
-```
-
-### Code Style
-
-- Follow PEP 8 guidelines
-- Docstrings for all functions
-- Type hints where appropriate
-- Comprehensive error handling
-
-### Contributing
-
-Contributions welcome! Priority areas:
-
-1. **Group Management Module** - Create/delete groups, manage members
-2. **Reports Module** - User reports, login reports, audit logs
-3. **Calendar Module** - Calendar operations and sharing
-4. **Drive Module** - File operations and permissions
-5. **ACLs Module** - Non-domain access detection
-
-**To contribute:**
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Submit a pull request
-
-## Project History
-
-Built using a modular agent-based development approach:
-
-- **Agent 1**: Foundation Layer (utils, main entry, placeholders)
-- **Agent 2**: Email Backend Module (12 operations)
-- **Agent 3**: Email GUI Window (6 tabs, full interface)
-- **Agent 4**: Build & Distribution (this deliverable)
-
-Total: ~3,300 lines of Python code
-
 ## FAQ
 
 **Q: Does this replace GAM7?**
@@ -301,11 +200,11 @@ A: Yes. This tool only executes GAM7 commands. It has the same access and securi
 **Q: Can I use this with GAMADV-XTD3?**
 A: No, GAM7 is required. Please upgrade to GAM7.
 
-**Q: How do I add more modules?**
-A: See the `gam_tool_spec.md` file for the original specification and architecture. New modules follow the same pattern as email operations.
-
 **Q: What Python version do I need?**
 A: Python 3.8 or higher. Python 3.10+ recommended.
+
+**Q: Can I contribute or add features?**
+A: Yes! This is an open-source project. Fork the repository and submit pull requests with your enhancements.
 
 ## Links
 

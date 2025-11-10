@@ -144,15 +144,16 @@ def create_user(users_data, dry_run=False):
     }
 
 
-def delete_user(users, dry_run=False):
+def delete_user(users, dry_run=False, drive_target=None):
     """
-    Delete user accounts.
+    Delete user accounts with optional Drive ownership transfer.
 
     WARNING: This permanently deletes users. Use with caution.
 
     Args:
         users (list): List of user emails to delete
         dry_run (bool): If True, preview without executing
+        drive_target (str, optional): Email address to transfer Drive files to
 
     Yields:
         dict: Progress updates
@@ -166,6 +167,33 @@ def delete_user(users, dry_run=False):
     errors = []
 
     for i, user_email in enumerate(users, start=1):
+        # Handle Drive transfer first if specified
+        if drive_target and not dry_run:
+            yield {
+                'status': 'processing',
+                'email': user_email,
+                'current': i,
+                'total': total,
+                'message': f"Transferring Drive files from {user_email} to {drive_target}..."
+            }
+
+            try:
+                transfer_cmd = [get_gam_command(), 'user', user_email, 'transfer', 'drive', drive_target]
+                transfer_result = subprocess.run(transfer_cmd, capture_output=True, text=True, timeout=120)
+
+                if transfer_result.returncode != 0:
+                    yield {
+                        'status': 'warning',
+                        'email': user_email,
+                        'message': f"⚠ Drive transfer failed for {user_email}, continuing with deletion..."
+                    }
+            except Exception as e:
+                yield {
+                    'status': 'warning',
+                    'email': user_email,
+                    'message': f"⚠ Drive transfer error for {user_email}: {str(e)}"
+                }
+
         yield {
             'status': 'processing',
             'email': user_email,
@@ -178,10 +206,13 @@ def delete_user(users, dry_run=False):
             cmd = [get_gam_command(), 'delete', 'user', user_email]
 
             if dry_run:
+                msg = f"[DRY RUN] Would delete user: {user_email}"
+                if drive_target:
+                    msg += f" (Drive transfer to {drive_target})"
                 yield {
                     'status': 'dry-run',
                     'email': user_email,
-                    'message': f"[DRY RUN] Would delete user: {user_email}"
+                    'message': msg
                 }
                 success_count += 1
                 continue
@@ -224,13 +255,15 @@ def delete_user(users, dry_run=False):
     }
 
 
-def suspend_user(users, dry_run=False):
+def suspend_user(users, dry_run=False, drive_target=None, target_ou=None):
     """
-    Suspend user accounts.
+    Suspend user accounts with optional Drive transfer and OU move.
 
     Args:
         users (list): List of user emails to suspend
         dry_run (bool): If True, preview without executing
+        drive_target (str, optional): Email address to transfer Drive files to
+        target_ou (str, optional): OU path to move users to
 
     Yields:
         dict: Progress updates
@@ -244,6 +277,60 @@ def suspend_user(users, dry_run=False):
     errors = []
 
     for i, user_email in enumerate(users, start=1):
+        # Handle Drive transfer first if specified
+        if drive_target and not dry_run:
+            yield {
+                'status': 'processing',
+                'email': user_email,
+                'current': i,
+                'total': total,
+                'message': f"Transferring Drive files from {user_email} to {drive_target}..."
+            }
+
+            try:
+                transfer_cmd = [get_gam_command(), 'user', user_email, 'transfer', 'drive', drive_target]
+                transfer_result = subprocess.run(transfer_cmd, capture_output=True, text=True, timeout=120)
+
+                if transfer_result.returncode != 0:
+                    yield {
+                        'status': 'warning',
+                        'email': user_email,
+                        'message': f"⚠ Drive transfer failed for {user_email}, continuing with suspension..."
+                    }
+            except Exception as e:
+                yield {
+                    'status': 'warning',
+                    'email': user_email,
+                    'message': f"⚠ Drive transfer error for {user_email}: {str(e)}"
+                }
+
+        # Handle OU move if specified
+        if target_ou and not dry_run:
+            yield {
+                'status': 'processing',
+                'email': user_email,
+                'current': i,
+                'total': total,
+                'message': f"Moving {user_email} to OU {target_ou}..."
+            }
+
+            try:
+                ou_cmd = [get_gam_command(), 'update', 'user', user_email, 'ou', target_ou]
+                ou_result = subprocess.run(ou_cmd, capture_output=True, text=True, timeout=30)
+
+                if ou_result.returncode != 0:
+                    yield {
+                        'status': 'warning',
+                        'email': user_email,
+                        'message': f"⚠ OU move failed for {user_email}, continuing with suspension..."
+                    }
+            except Exception as e:
+                yield {
+                    'status': 'warning',
+                    'email': user_email,
+                    'message': f"⚠ OU move error for {user_email}: {str(e)}"
+                }
+
         yield {
             'status': 'processing',
             'email': user_email,
@@ -256,10 +343,15 @@ def suspend_user(users, dry_run=False):
             cmd = [get_gam_command(), 'update', 'user', user_email, 'suspended', 'on']
 
             if dry_run:
+                msg = f"[DRY RUN] Would suspend user: {user_email}"
+                if drive_target:
+                    msg += f" (Drive transfer to {drive_target})"
+                if target_ou:
+                    msg += f" (Move to OU {target_ou})"
                 yield {
                     'status': 'dry-run',
                     'email': user_email,
-                    'message': f"[DRY RUN] Would suspend user: {user_email}"
+                    'message': msg
                 }
                 success_count += 1
                 continue
@@ -525,17 +617,17 @@ def update_user_info(users_data, dry_run=False):
             if 'employeeId' in user_data and user_data['employeeId']:
                 cmd.extend(['externalid', 'organization', user_data['employeeId'].strip()])
             if 'jobTitle' in user_data and user_data['jobTitle']:
-                cmd.extend(['organization', 'title', user_data['jobTitle'].strip()])
+                cmd.extend(['organization', 'customtype', '', 'title', user_data['jobTitle'].strip(), 'primary'])
             if 'manager' in user_data and user_data['manager']:
                 cmd.extend(['relation', 'manager', user_data['manager'].strip()])
             if 'department' in user_data and user_data['department']:
-                cmd.extend(['organization', 'department', user_data['department'].strip()])
+                cmd.extend(['organization', 'customtype', '', 'department', user_data['department'].strip(), 'primary'])
             if 'costCenter' in user_data and user_data['costCenter']:
-                cmd.extend(['organization', 'costcenter', user_data['costCenter'].strip()])
+                cmd.extend(['organization', 'customtype', '', 'costcenter', user_data['costCenter'].strip(), 'primary'])
             if 'buildingId' in user_data and user_data['buildingId']:
-                cmd.extend(['location', 'buildingid', user_data['buildingId'].strip()])
+                cmd.extend(['location', 'type', 'desk', 'buildingid', user_data['buildingId'].strip(), 'endlocation'])
             if 'address' in user_data and user_data['address']:
-                cmd.extend(['address', 'type', 'work', 'unstructured', user_data['address'].strip()])
+                cmd.extend(['address', 'type', 'work', 'unstructured', user_data['address'].strip(), 'primary'])
 
             # GAL visibility
             if 'galHidden' in user_data:
@@ -987,7 +1079,10 @@ def list_org_units():
 
 def enable_mfa(users):
     """
-    Enable Multi-Factor Authentication (MFA) for users.
+    Enable Multi-Factor Authentication (MFA) enforcement for users.
+
+    Note: GAM does not support directly enrolling users in 2SV. This command
+    enforces 2SV requirement, prompting users to enroll at next login.
 
     Args:
         users (list): List of user emails
@@ -1009,11 +1104,12 @@ def enable_mfa(users):
             'email': user_email,
             'current': i,
             'total': total,
-            'message': f"Enabling MFA for {user_email}..."
+            'message': f"Enforcing MFA for {user_email}..."
         }
 
         try:
-            cmd = [get_gam_command(), 'update', 'user', user_email, 'enroll2sv']
+            # GAM doesn't support direct 2SV enrollment - we enforce at user level
+            cmd = [get_gam_command(), 'user', user_email, 'update', '2sv', 'enforced', 'true']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -1021,7 +1117,7 @@ def enable_mfa(users):
                 yield {
                     'status': 'success',
                     'email': user_email,
-                    'message': f"✓ Enabled MFA for {user_email}"
+                    'message': f"✓ Enforced MFA requirement for {user_email}"
                 }
             else:
                 failure_count += 1
@@ -1031,7 +1127,7 @@ def enable_mfa(users):
                 yield {
                     'status': 'error',
                     'email': user_email,
-                    'message': f"✗ Failed to enable MFA for {user_email}"
+                    'message': f"✗ Failed to enforce MFA for {user_email}"
                 }
 
         except Exception as e:
@@ -1042,7 +1138,7 @@ def enable_mfa(users):
             yield {
                 'status': 'error',
                 'email': user_email,
-                'message': f"✗ Error enabling MFA for {user_email}"
+                'message': f"✗ Error enforcing MFA for {user_email}"
             }
 
     return {
@@ -1080,7 +1176,7 @@ def disable_mfa(users):
         }
 
         try:
-            cmd = [get_gam_command(), 'update', 'user', user_email, 'turn2svoff']
+            cmd = [get_gam_command(), 'user', user_email, 'turnoff2sv']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -1110,73 +1206,6 @@ def disable_mfa(users):
                 'status': 'error',
                 'email': user_email,
                 'message': f"✗ Error disabling MFA for {user_email}"
-            }
-
-    return {
-        'success_count': success_count,
-        'failure_count': failure_count,
-        'errors': errors
-    }
-
-
-def remove_mfa_factor(users):
-    """
-    Remove MFA enrollment/factors for users.
-
-    Args:
-        users (list): List of user emails
-
-    Yields:
-        dict: Progress updates
-
-    Returns:
-        dict: Summary with success/failure counts
-    """
-    total = len(users)
-    success_count = 0
-    failure_count = 0
-    errors = []
-
-    for i, user_email in enumerate(users, start=1):
-        yield {
-            'status': 'processing',
-            'email': user_email,
-            'current': i,
-            'total': total,
-            'message': f"Removing MFA factor for {user_email}..."
-        }
-
-        try:
-            cmd = [get_gam_command(), 'user', user_email, 'remove2sv']
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-
-            if result.returncode == 0:
-                success_count += 1
-                yield {
-                    'status': 'success',
-                    'email': user_email,
-                    'message': f"✓ Removed MFA factor for {user_email}"
-                }
-            else:
-                failure_count += 1
-                error_msg = result.stderr[:2000] if result.stderr else "Unknown error"
-                errors.append((user_email, error_msg))
-                log_error("Remove MFA Factor", f"Failed for {user_email}: {error_msg}")
-                yield {
-                    'status': 'error',
-                    'email': user_email,
-                    'message': f"✗ Failed to remove MFA factor for {user_email}"
-                }
-
-        except Exception as e:
-            failure_count += 1
-            error_msg = str(e)
-            errors.append((user_email, error_msg))
-            log_error("Remove MFA Factor", f"Exception for {user_email}: {error_msg}")
-            yield {
-                'status': 'error',
-                'email': user_email,
-                'message': f"✗ Error removing MFA factor for {user_email}"
             }
 
     return {
