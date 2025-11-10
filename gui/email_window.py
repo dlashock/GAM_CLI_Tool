@@ -646,9 +646,29 @@ class EmailWindow(BaseOperationWindow):
             messagebox.showwarning("Operation in Progress", "Please wait for the current operation to complete.")
             return
 
+        # Check if group was selected
+        target_var = getattr(self, "labels_target_var")
+        target_type = target_var.get()
+
         users = self.get_target_users("labels")
         if not users:
             return
+
+        # If "group" was selected, fetch group members instead of using group email
+        if target_type == "group":
+            group_email = users[0]  # get_target_users returns group email in list
+
+            # Fetch group members
+            from utils.workspace_data import fetch_group_members
+            members = fetch_group_members(group_email)
+
+            if not members:
+                messagebox.showerror("Error", f"Failed to fetch members from group {group_email} or group has no members.")
+                return
+
+            # Replace group email with member emails
+            users = members
+            messagebox.showinfo("Group Members", f"Fetched {len(users)} members from group {group_email}")
 
         action = self.label_action.get()
 
@@ -821,9 +841,29 @@ class EmailWindow(BaseOperationWindow):
             messagebox.showwarning("Operation in Progress", "Please wait for the current operation to complete.")
             return
 
+        # Check if group was selected
+        target_var = getattr(self, "filters_target_var")
+        target_type = target_var.get()
+
         users = self.get_target_users("filters")
         if not users:
             return
+
+        # If "group" was selected, fetch group members instead of using group email
+        if target_type == "group":
+            group_email = users[0]  # get_target_users returns group email in list
+
+            # Fetch group members
+            from utils.workspace_data import fetch_group_members
+            members = fetch_group_members(group_email)
+
+            if not members:
+                messagebox.showerror("Error", f"Failed to fetch members from group {group_email} or group has no members.")
+                return
+
+            # Replace group email with member emails
+            users = members
+            messagebox.showinfo("Group Members", f"Fetched {len(users)} members from group {group_email}")
 
         action = self.filter_action.get()
 

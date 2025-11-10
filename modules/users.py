@@ -489,6 +489,7 @@ def update_user_info(users_data, dry_run=False):
                           - costCenter (optional)
                           - buildingId (optional)
                           - address (optional)
+                          - galHidden (optional) - boolean or string "true"/"false"
         dry_run (bool): If True, preview without executing
 
     Yields:
@@ -535,6 +536,17 @@ def update_user_info(users_data, dry_run=False):
                 cmd.extend(['location', 'buildingid', user_data['buildingId'].strip()])
             if 'address' in user_data and user_data['address']:
                 cmd.extend(['address', 'type', 'work', 'unstructured', user_data['address'].strip()])
+
+            # GAL visibility
+            if 'galHidden' in user_data:
+                gal_hidden = user_data['galHidden']
+                # Handle both boolean and string values
+                if isinstance(gal_hidden, str):
+                    gal_hidden = gal_hidden.lower() in ['true', '1', 'yes']
+                if gal_hidden:
+                    cmd.extend(['gal', 'off'])
+                else:
+                    cmd.extend(['gal', 'on'])
 
             # Check if any updates provided
             if len(cmd) == 4:  # Only [gam, update, user, email]

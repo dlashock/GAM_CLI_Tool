@@ -763,16 +763,24 @@ class UsersWindow(BaseOperationWindow):
         self.update_info_address = ttk.Entry(self.update_info_single_frame, width=40)
         self.update_info_address.grid(row=9, column=1, sticky=tk.EW, pady=5)
 
+        # GAL visibility checkbox
+        self.update_info_hide_from_gal = tk.BooleanVar()
+        ttk.Checkbutton(
+            self.update_info_single_frame,
+            text="Hide from Global Address List (GAL)",
+            variable=self.update_info_hide_from_gal
+        ).grid(row=10, column=1, sticky=tk.W, pady=5)
+
         ttk.Label(self.update_info_single_frame, text="* Required. Leave other fields blank to keep unchanged.",
-                 font=('Arial', 8), foreground='gray').grid(row=10, column=1, sticky=tk.W, pady=(5, 0))
+                 font=('Arial', 8), foreground='gray').grid(row=11, column=1, sticky=tk.W, pady=(5, 0))
 
         self.update_info_single_frame.grid_columnconfigure(1, weight=1)
 
         # CSV selection frame
         self.update_info_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
-        ttk.Label(self.update_info_csv_frame, text="CSV Format: email,firstName,lastName,employeeId,jobTitle,manager,department,costCenter,buildingId,address").pack(anchor=tk.W)
-        ttk.Label(self.update_info_csv_frame, text="Required: email. Optional: All other fields (firstName, lastName, etc.)").pack(anchor=tk.W, pady=(5, 10))
+        ttk.Label(self.update_info_csv_frame, text="CSV Format: email,firstName,lastName,employeeId,jobTitle,manager,department,costCenter,buildingId,address,galHidden").pack(anchor=tk.W)
+        ttk.Label(self.update_info_csv_frame, text="Required: email. Optional: All other fields. galHidden: true/false").pack(anchor=tk.W, pady=(5, 10))
 
         csv_input_frame = ttk.Frame(self.update_info_csv_frame)
         csv_input_frame.pack(fill=tk.X)
@@ -881,6 +889,10 @@ class UsersWindow(BaseOperationWindow):
             address = self.update_info_address.get().strip()
             if address:
                 user_data['address'] = address
+
+            # GAL visibility - always include if checkbox is checked
+            if self.update_info_hide_from_gal.get():
+                user_data['galHidden'] = True
 
             users_data = [user_data]
 
