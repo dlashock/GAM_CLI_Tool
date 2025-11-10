@@ -49,24 +49,33 @@ class UsersWindow(BaseOperationWindow):
         self.create_update_info_tab()
         self.create_manage_ou_tab()
         self.create_manage_aliases_tab()
+        self.create_mfa_tab()
 
     # ==================== TAB 1: CREATE USERS ====================
 
     def create_create_users_tab(self):
         """Create the Create Users tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Create Users")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
 
         # Instructions
         instructions = ttk.Label(
-            tab,
+            content,
             text="Create new user accounts. Choose single user or CSV for bulk creation.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Mode selection
-        mode_frame = ttk.Frame(tab)
+        mode_frame = ttk.Frame(content)
         mode_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.create_users_mode = tk.StringVar(value="single")
@@ -86,7 +95,7 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Container for mode-specific content (keeps layout stable)
-        mode_container = ttk.Frame(tab)
+        mode_container = ttk.Frame(content)
         mode_container.pack(fill=tk.X, pady=(0, 10))
 
         # Single user input frame
@@ -151,11 +160,11 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Progress frame
-        self.create_users_progress = self.create_progress_frame(tab)
+        self.create_users_progress = self.create_progress_frame(content)
         self.create_users_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         # Execute button
-        btn_frame = ttk.Frame(tab)
+        btn_frame = ttk.Frame(content)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(
@@ -310,12 +319,20 @@ class UsersWindow(BaseOperationWindow):
 
     def create_delete_users_tab(self):
         """Create the Delete Users tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Delete Users")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
 
         # Warning
         warning = ttk.Label(
-            tab,
+            content,
             text="⚠ WARNING: This permanently deletes user accounts. This action cannot be undone!",
             foreground='red',
             font=('Arial', 10, 'bold')
@@ -323,15 +340,15 @@ class UsersWindow(BaseOperationWindow):
         warning.pack(pady=(0, 10), anchor=tk.W)
 
         # Target selection (simplified - no "All Users" or "Group" for safety)
-        self.delete_users_target = self.create_single_user_target_selection_frame(tab, 'delete_users')
+        self.delete_users_target = self.create_single_user_target_selection_frame(content, 'delete_users')
         self.delete_users_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
-        self.delete_users_progress = self.create_progress_frame(tab)
+        self.delete_users_progress = self.create_progress_frame(content)
         self.delete_users_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         # Execute button
-        btn_frame = ttk.Frame(tab)
+        btn_frame = ttk.Frame(content)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(
@@ -377,19 +394,27 @@ class UsersWindow(BaseOperationWindow):
 
     def create_suspend_restore_tab(self):
         """Create the Suspend/Restore Users tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Suspend/Restore")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
 
         # Instructions
         instructions = ttk.Label(
-            tab,
+            content,
             text="Suspend or restore user accounts. Suspended users cannot sign in.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Action selection
-        action_frame = ttk.LabelFrame(tab, text="Action", padding="10")
+        action_frame = ttk.LabelFrame(content, text="Action", padding="10")
         action_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.suspend_restore_action = tk.StringVar(value="suspend")
@@ -408,15 +433,15 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Target selection (simplified - no "All Users" or "Group" for safety)
-        self.suspend_restore_target = self.create_single_user_target_selection_frame(tab, 'suspend_restore')
+        self.suspend_restore_target = self.create_single_user_target_selection_frame(content, 'suspend_restore')
         self.suspend_restore_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
-        self.suspend_restore_progress = self.create_progress_frame(tab)
+        self.suspend_restore_progress = self.create_progress_frame(content)
         self.suspend_restore_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         # Execute button
-        btn_frame = ttk.Frame(tab)
+        btn_frame = ttk.Frame(content)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(
@@ -462,19 +487,27 @@ class UsersWindow(BaseOperationWindow):
 
     def create_reset_password_tab(self):
         """Create the Reset Password tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Reset Passwords")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
 
         # Instructions
         instructions = ttk.Label(
-            tab,
+            content,
             text="Reset user passwords. Choose single user or CSV for bulk resets.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Mode selection
-        mode_frame = ttk.Frame(tab)
+        mode_frame = ttk.Frame(content)
         mode_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.reset_password_mode = tk.StringVar(value="single")
@@ -494,7 +527,7 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Container for mode-specific content
-        mode_container = ttk.Frame(tab)
+        mode_container = ttk.Frame(content)
         mode_container.pack(fill=tk.X, pady=(0, 10))
 
         # Single user input frame
@@ -530,11 +563,11 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Progress frame
-        self.reset_password_progress = self.create_progress_frame(tab)
+        self.reset_password_progress = self.create_progress_frame(content)
         self.reset_password_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         # Execute button
-        btn_frame = ttk.Frame(tab)
+        btn_frame = ttk.Frame(content)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(
@@ -644,19 +677,27 @@ class UsersWindow(BaseOperationWindow):
 
     def create_update_info_tab(self):
         """Create the Update User Info tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Update Info")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
 
         # Instructions
         instructions = ttk.Label(
-            tab,
+            content,
             text="Update user information. Choose single user or CSV for bulk updates.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Mode selection
-        mode_frame = ttk.Frame(tab)
+        mode_frame = ttk.Frame(content)
         mode_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.update_info_mode = tk.StringVar(value="single")
@@ -676,7 +717,7 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Container for mode-specific content
-        mode_container = ttk.Frame(tab)
+        mode_container = ttk.Frame(content)
         mode_container.pack(fill=tk.X, pady=(0, 10))
 
         # Single user input frame
@@ -694,20 +735,52 @@ class UsersWindow(BaseOperationWindow):
         self.update_info_lastname = ttk.Entry(self.update_info_single_frame, width=40)
         self.update_info_lastname.grid(row=2, column=1, sticky=tk.EW, pady=5)
 
-        ttk.Label(self.update_info_single_frame, text="Address:").grid(row=3, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        ttk.Label(self.update_info_single_frame, text="Employee ID:").grid(row=3, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_employee_id = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_employee_id.grid(row=3, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Job Title:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_job_title = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_job_title.grid(row=4, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Manager's Email:").grid(row=5, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_manager = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_manager.grid(row=5, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Department:").grid(row=6, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_department = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_department.grid(row=6, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Cost Center:").grid(row=7, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_cost_center = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_cost_center.grid(row=7, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Building ID:").grid(row=8, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_building_id = ttk.Entry(self.update_info_single_frame, width=40)
+        self.update_info_building_id.grid(row=8, column=1, sticky=tk.EW, pady=5)
+
+        ttk.Label(self.update_info_single_frame, text="Address:").grid(row=9, column=0, sticky=tk.W, pady=5, padx=(0, 5))
         self.update_info_address = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_address.grid(row=3, column=1, sticky=tk.EW, pady=5)
+        self.update_info_address.grid(row=9, column=1, sticky=tk.EW, pady=5)
+
+        # GAL visibility checkbox
+        self.update_info_hide_from_gal = tk.BooleanVar()
+        ttk.Checkbutton(
+            self.update_info_single_frame,
+            text="Hide from Global Address List (GAL)",
+            variable=self.update_info_hide_from_gal
+        ).grid(row=10, column=1, sticky=tk.W, pady=5)
 
         ttk.Label(self.update_info_single_frame, text="* Required. Leave other fields blank to keep unchanged.",
-                 font=('Arial', 8), foreground='gray').grid(row=4, column=1, sticky=tk.W, pady=(5, 0))
+                 font=('Arial', 8), foreground='gray').grid(row=11, column=1, sticky=tk.W, pady=(5, 0))
 
         self.update_info_single_frame.grid_columnconfigure(1, weight=1)
 
         # CSV selection frame
         self.update_info_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
 
-        ttk.Label(self.update_info_csv_frame, text="CSV Format: email,firstName,lastName,address").pack(anchor=tk.W)
-        ttk.Label(self.update_info_csv_frame, text="Required: email. Optional: firstName, lastName, address").pack(anchor=tk.W, pady=(5, 10))
+        ttk.Label(self.update_info_csv_frame, text="CSV Format: email,firstName,lastName,employeeId,jobTitle,manager,department,costCenter,buildingId,address,galHidden").pack(anchor=tk.W)
+        ttk.Label(self.update_info_csv_frame, text="Required: email. Optional: All other fields. galHidden: true/false").pack(anchor=tk.W, pady=(5, 10))
 
         csv_input_frame = ttk.Frame(self.update_info_csv_frame)
         csv_input_frame.pack(fill=tk.X)
@@ -722,11 +795,11 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Progress frame
-        self.update_info_progress = self.create_progress_frame(tab)
+        self.update_info_progress = self.create_progress_frame(content)
         self.update_info_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         # Execute button
-        btn_frame = ttk.Frame(tab)
+        btn_frame = ttk.Frame(content)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(
@@ -789,9 +862,37 @@ class UsersWindow(BaseOperationWindow):
             if lastname:
                 user_data['lastName'] = lastname
 
+            employee_id = self.update_info_employee_id.get().strip()
+            if employee_id:
+                user_data['employeeId'] = employee_id
+
+            job_title = self.update_info_job_title.get().strip()
+            if job_title:
+                user_data['jobTitle'] = job_title
+
+            manager = self.update_info_manager.get().strip()
+            if manager:
+                user_data['manager'] = manager
+
+            department = self.update_info_department.get().strip()
+            if department:
+                user_data['department'] = department
+
+            cost_center = self.update_info_cost_center.get().strip()
+            if cost_center:
+                user_data['costCenter'] = cost_center
+
+            building_id = self.update_info_building_id.get().strip()
+            if building_id:
+                user_data['buildingId'] = building_id
+
             address = self.update_info_address.get().strip()
             if address:
                 user_data['address'] = address
+
+            # GAL visibility - always include if checkbox is checked
+            if self.update_info_hide_from_gal.get():
+                user_data['galHidden'] = True
 
             users_data = [user_data]
 
@@ -839,19 +940,27 @@ class UsersWindow(BaseOperationWindow):
 
     def create_manage_ou_tab(self):
         """Create the Manage Organizational Units tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Manage OUs")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
 
         # Instructions
         instructions = ttk.Label(
-            tab,
+            content,
             text="Move users to different organizational units. Choose single entry or CSV for bulk moves.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Mode selection
-        mode_frame = ttk.LabelFrame(tab, text="Input Mode", padding="10")
+        mode_frame = ttk.LabelFrame(content, text="Input Mode", padding="10")
         mode_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.manage_ou_mode = tk.StringVar(value="single")
@@ -872,15 +981,25 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Container for mode-specific frames
-        mode_container = ttk.Frame(tab)
+        mode_container = ttk.Frame(content)
         mode_container.pack(fill=tk.X, pady=(0, 10))
 
         # Single entry frame
         self.manage_ou_single_frame = ttk.LabelFrame(mode_container, text="User Details", padding="10")
 
+        # User Email with dropdown
         ttk.Label(self.manage_ou_single_frame, text="User Email: *").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.manage_ou_email = ttk.Entry(self.manage_ou_single_frame, width=40)
-        self.manage_ou_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
+        email_frame = ttk.Frame(self.manage_ou_single_frame)
+        email_frame.grid(row=0, column=1, sticky=tk.EW, pady=5)
+
+        self.manage_ou_email = ttk.Combobox(email_frame)
+        self.manage_ou_email.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            email_frame,
+            text="Load Users",
+            command=self.load_users_for_manage_ou
+        ).pack(side=tk.LEFT)
 
         # Organizational Unit with dropdown
         ttk.Label(self.manage_ou_single_frame, text="Organizational Unit: *").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
@@ -920,11 +1039,11 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Progress frame
-        self.manage_ou_progress = self.create_progress_frame(tab)
+        self.manage_ou_progress = self.create_progress_frame(content)
         self.manage_ou_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         # Execute button
-        btn_frame = ttk.Frame(tab)
+        btn_frame = ttk.Frame(content)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(
@@ -953,6 +1072,24 @@ class UsersWindow(BaseOperationWindow):
         else:
             self.manage_ou_single_frame.pack_forget()
             self.manage_ou_csv_frame.pack(fill=tk.X, expand=True)
+
+    def load_users_for_manage_ou(self):
+        """Load users for the manage OU user email dropdown."""
+        self.manage_ou_email['values'] = ["Loading..."]
+        self.manage_ou_email.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.manage_ou_email.configure(values=sorted(users)))
+                self.after(0, lambda: self.manage_ou_email.set(""))
+            else:
+                self.after(0, lambda: self.manage_ou_email.configure(values=[]))
+                self.after(0, lambda: self.manage_ou_email.set(""))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
 
     def load_org_units_for_manage_ou(self):
         """Load organizational units for the manage OU dropdown."""
@@ -1059,19 +1196,27 @@ class UsersWindow(BaseOperationWindow):
 
     def create_manage_aliases_tab(self):
         """Create the Manage Aliases tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Manage Aliases")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
 
         # Instructions
         instructions = ttk.Label(
-            tab,
+            content,
             text="Add or remove email aliases. Choose single entry or CSV for bulk operations.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
 
         # Action selection
-        action_frame = ttk.LabelFrame(tab, text="Action", padding="10")
+        action_frame = ttk.LabelFrame(content, text="Action", padding="10")
         action_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.manage_aliases_action = tk.StringVar(value="add")
@@ -1090,7 +1235,7 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Mode selection
-        mode_frame = ttk.Frame(tab)
+        mode_frame = ttk.Frame(content)
         mode_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.manage_aliases_mode = tk.StringVar(value="single")
@@ -1110,7 +1255,7 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Container for mode-specific content
-        mode_container = ttk.Frame(tab)
+        mode_container = ttk.Frame(content)
         mode_container.pack(fill=tk.X, pady=(0, 10))
 
         # Single entry frame
@@ -1147,11 +1292,11 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Progress frame
-        self.manage_aliases_progress = self.create_progress_frame(tab)
+        self.manage_aliases_progress = self.create_progress_frame(content)
         self.manage_aliases_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         # Execute button
-        btn_frame = ttk.Frame(tab)
+        btn_frame = ttk.Frame(content)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(
@@ -1291,4 +1436,128 @@ class UsersWindow(BaseOperationWindow):
                 data,
                 dry_run=dry_run,
                 on_success=on_success
+            )
+
+    # ==================== TAB 8: MFA MANAGEMENT ====================
+
+    def create_mfa_tab(self):
+        """Create the MFA Management tab."""
+        tab = ttk.Frame(self.notebook)
+        self.notebook.add(tab, text="MFA Management")
+
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+
+        # Instructions
+        instructions = ttk.Label(
+            content,
+            text="Manage Multi-Factor Authentication (MFA) for users.",
+            wraplength=800
+        )
+        instructions.pack(pady=(0, 10), anchor=tk.W)
+
+        # Action selection
+        action_frame = ttk.LabelFrame(content, text="MFA Action", padding="10")
+        action_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.mfa_action = tk.StringVar(value="enable")
+        ttk.Radiobutton(
+            action_frame,
+            text="Enable MFA",
+            variable=self.mfa_action,
+            value="enable"
+        ).pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(
+            action_frame,
+            text="Disable MFA",
+            variable=self.mfa_action,
+            value="disable"
+        ).pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(
+            action_frame,
+            text="Remove MFA Factor",
+            variable=self.mfa_action,
+            value="remove_factor"
+        ).pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(
+            action_frame,
+            text="Retrieve Backup Codes",
+            variable=self.mfa_action,
+            value="backup_codes"
+        ).pack(side=tk.LEFT)
+
+        # Target selection (simplified - no "All Users" or "Group" for safety)
+        self.mfa_target = self.create_single_user_target_selection_frame(content, 'mfa')
+        self.mfa_target.pack(fill=tk.X, pady=(0, 10))
+
+        # Progress frame
+        self.mfa_progress = self.create_progress_frame(content)
+        self.mfa_progress.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+
+        # Execute button
+        btn_frame = ttk.Frame(content)
+        btn_frame.pack(fill=tk.X, pady=(10, 0))
+
+        ttk.Button(
+            btn_frame,
+            text="Execute",
+            command=self.execute_mfa,
+            style='Accent.TButton'
+        ).pack(side=tk.LEFT, padx=(0, 5))
+
+    def execute_mfa(self):
+        """Execute MFA operation."""
+        users = self.get_target_users('mfa')
+        if users is None:
+            return
+
+        action = self.mfa_action.get()
+
+        # Confirmation for multiple users
+        if len(users) > 1:
+            action_text = {
+                'enable': 'enable MFA for',
+                'disable': 'disable MFA for',
+                'remove_factor': 'remove MFA factor from',
+                'backup_codes': 'retrieve backup codes for'
+            }.get(action, 'perform MFA action on')
+
+            if not messagebox.askyesno(
+                "Confirm Operation",
+                f"You are about to {action_text} {len(users)} users.\n\nProceed?"
+            ):
+                return
+
+        # Execute appropriate action
+        if action == 'enable':
+            self.run_operation(
+                users_module.enable_mfa,
+                self.mfa_progress,
+                users
+            )
+        elif action == 'disable':
+            self.run_operation(
+                users_module.disable_mfa,
+                self.mfa_progress,
+                users
+            )
+        elif action == 'remove_factor':
+            self.run_operation(
+                users_module.remove_mfa_factor,
+                self.mfa_progress,
+                users
+            )
+        else:  # backup_codes
+            self.run_operation(
+                users_module.get_backup_codes,
+                self.mfa_progress,
+                users
             )

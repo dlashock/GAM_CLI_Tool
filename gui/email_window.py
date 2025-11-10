@@ -48,15 +48,23 @@ class EmailWindow(BaseOperationWindow):
 
     def create_delete_messages_tab(self):
         """Create the Delete Messages tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Delete Messages")
 
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "delete_msg")
+        target_frame = self.create_target_selection_frame(content, "delete_msg")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(tab, text="Delete Parameters", padding="10")
+        params_frame = ttk.LabelFrame(content, text="Delete Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Query string
@@ -104,7 +112,7 @@ class EmailWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Progress and results
-        self.delete_progress_frame = self.create_progress_frame(tab)
+        self.delete_progress_frame = self.create_progress_frame(content)
         self.delete_progress_frame.pack(fill=tk.BOTH, expand=True)
 
     def execute_delete_messages(self):
@@ -113,10 +121,30 @@ class EmailWindow(BaseOperationWindow):
             messagebox.showwarning("Operation in Progress", "Please wait for the current operation to complete.")
             return
 
+        # Check if group was selected
+        target_var = getattr(self, "delete_msg_target_var")
+        target_type = target_var.get()
+
         # Get target users
         users = self.get_target_users("delete_msg")
         if not users:
             return
+
+        # If "group" was selected, fetch group members instead of using group email
+        if target_type == "group":
+            group_email = users[0]  # get_target_users returns group email in list
+
+            # Fetch group members
+            from utils.workspace_data import fetch_group_members
+            members = fetch_group_members(group_email)
+
+            if not members:
+                messagebox.showerror("Error", f"Failed to fetch members from group {group_email} or group has no members.")
+                return
+
+            # Replace group email with member emails
+            users = members
+            messagebox.showinfo("Group Members", f"Fetched {len(users)} members from group {group_email}")
 
         # Get query
         query = self.delete_query_entry.get().strip()
@@ -157,15 +185,23 @@ class EmailWindow(BaseOperationWindow):
 
     def create_delegates_tab(self):
         """Create the Manage Delegates tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Manage Delegates")
 
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+
         # Target selection (simplified - no "All Users" or "Group")
-        target_frame = self.create_single_user_target_selection_frame(tab, "delegates")
+        target_frame = self.create_single_user_target_selection_frame(content, "delegates")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(tab, text="Delegate Parameters", padding="10")
+        params_frame = ttk.LabelFrame(content, text="Delegate Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Action selection
@@ -175,10 +211,19 @@ class EmailWindow(BaseOperationWindow):
         ttk.Radiobutton(params_frame, text="Remove Delegate", variable=self.delegate_action,
                        value="remove").grid(row=0, column=1, sticky=tk.W, pady=5)
 
-        # Delegate email
+        # Delegate email with dropdown
         ttk.Label(params_frame, text="Delegate Email:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.delegate_email_entry = ttk.Entry(params_frame, width=40)
-        self.delegate_email_entry.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
+        delegate_email_frame = ttk.Frame(params_frame)
+        delegate_email_frame.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
+
+        self.delegate_email_entry = ttk.Combobox(delegate_email_frame)
+        self.delegate_email_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            delegate_email_frame,
+            text="Load Users",
+            command=self.load_users_for_delegates
+        ).pack(side=tk.LEFT)
 
         params_frame.grid_columnconfigure(1, weight=1)
 
@@ -192,8 +237,26 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.delegates_progress_frame = self.create_progress_frame(tab)
+        self.delegates_progress_frame = self.create_progress_frame(content)
         self.delegates_progress_frame.pack(fill=tk.BOTH, expand=True)
+
+    def load_users_for_delegates(self):
+        """Load users for the delegate email dropdown."""
+        self.delegate_email_entry['values'] = ["Loading..."]
+        self.delegate_email_entry.set("Loading...")
+
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.delegate_email_entry.configure(values=sorted(users)))
+                self.after(0, lambda: self.delegate_email_entry.set(""))
+            else:
+                self.after(0, lambda: self.delegate_email_entry.configure(values=[]))
+                self.after(0, lambda: self.delegate_email_entry.set(""))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
 
     def execute_delegates(self):
         """Execute delegate operation."""
@@ -239,15 +302,23 @@ class EmailWindow(BaseOperationWindow):
 
     def create_signatures_tab(self):
         """Create the Manage Signatures tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Manage Signatures")
 
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "signatures")
+        target_frame = self.create_target_selection_frame(content, "signatures")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(tab, text="Signature Parameters", padding="10")
+        params_frame = ttk.LabelFrame(content, text="Signature Parameters", padding="10")
         params_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Action selection (set only)
@@ -294,7 +365,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.signatures_progress_frame = self.create_progress_frame(tab)
+        self.signatures_progress_frame = self.create_progress_frame(content)
         self.signatures_progress_frame.pack(fill=tk.BOTH, expand=True)
 
         # Initial toggle
@@ -367,15 +438,23 @@ class EmailWindow(BaseOperationWindow):
 
     def create_forwarding_tab(self):
         """Create the Manage Forwarding tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Manage Forwarding")
 
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+
         # Target selection (simplified - no "All Users" or "Group")
-        target_frame = self.create_single_user_target_selection_frame(tab, "forwarding")
+        target_frame = self.create_single_user_target_selection_frame(content, "forwarding")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(tab, text="Forwarding Parameters", padding="10")
+        params_frame = ttk.LabelFrame(content, text="Forwarding Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Action selection
@@ -405,7 +484,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.forwarding_progress_frame = self.create_progress_frame(tab)
+        self.forwarding_progress_frame = self.create_progress_frame(content)
         self.forwarding_progress_frame.pack(fill=tk.BOTH, expand=True)
 
     def toggle_forwarding_input(self):
@@ -460,15 +539,23 @@ class EmailWindow(BaseOperationWindow):
 
     def create_labels_tab(self):
         """Create the Manage Labels tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Manage Labels")
 
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "labels")
+        target_frame = self.create_target_selection_frame(content, "labels")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(tab, text="Label Parameters", padding="10")
+        params_frame = ttk.LabelFrame(content, text="Label Parameters", padding="10")
         params_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Action selection
@@ -510,7 +597,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.labels_progress_frame = self.create_progress_frame(tab)
+        self.labels_progress_frame = self.create_progress_frame(content)
         self.labels_progress_frame.pack(fill=tk.BOTH, expand=True)
 
         # Initial toggle
@@ -559,9 +646,29 @@ class EmailWindow(BaseOperationWindow):
             messagebox.showwarning("Operation in Progress", "Please wait for the current operation to complete.")
             return
 
+        # Check if group was selected
+        target_var = getattr(self, "labels_target_var")
+        target_type = target_var.get()
+
         users = self.get_target_users("labels")
         if not users:
             return
+
+        # If "group" was selected, fetch group members instead of using group email
+        if target_type == "group":
+            group_email = users[0]  # get_target_users returns group email in list
+
+            # Fetch group members
+            from utils.workspace_data import fetch_group_members
+            members = fetch_group_members(group_email)
+
+            if not members:
+                messagebox.showerror("Error", f"Failed to fetch members from group {group_email} or group has no members.")
+                return
+
+            # Replace group email with member emails
+            users = members
+            messagebox.showinfo("Group Members", f"Fetched {len(users)} members from group {group_email}")
 
         action = self.label_action.get()
 
@@ -604,15 +711,23 @@ class EmailWindow(BaseOperationWindow):
 
     def create_filters_tab(self):
         """Create the Manage Filters tab."""
-        tab = ttk.Frame(self.notebook, padding="10")
+        tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Manage Filters")
 
+        # Create scrollable container
+        scroll_container, scroll_frame = self.create_scrollable_frame(tab)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        # Add padding to scrollable frame
+        content = ttk.Frame(scroll_frame, padding="10")
+        content.pack(fill=tk.BOTH, expand=True)
+
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "filters")
+        target_frame = self.create_target_selection_frame(content, "filters")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
-        params_frame = ttk.LabelFrame(tab, text="Filter Parameters", padding="10")
+        params_frame = ttk.LabelFrame(content, text="Filter Parameters", padding="10")
         params_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Action selection
@@ -672,7 +787,7 @@ class EmailWindow(BaseOperationWindow):
         execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
-        self.filters_progress_frame = self.create_progress_frame(tab)
+        self.filters_progress_frame = self.create_progress_frame(content)
         self.filters_progress_frame.pack(fill=tk.BOTH, expand=True)
 
         # Initial toggle
@@ -726,9 +841,29 @@ class EmailWindow(BaseOperationWindow):
             messagebox.showwarning("Operation in Progress", "Please wait for the current operation to complete.")
             return
 
+        # Check if group was selected
+        target_var = getattr(self, "filters_target_var")
+        target_type = target_var.get()
+
         users = self.get_target_users("filters")
         if not users:
             return
+
+        # If "group" was selected, fetch group members instead of using group email
+        if target_type == "group":
+            group_email = users[0]  # get_target_users returns group email in list
+
+            # Fetch group members
+            from utils.workspace_data import fetch_group_members
+            members = fetch_group_members(group_email)
+
+            if not members:
+                messagebox.showerror("Error", f"Failed to fetch members from group {group_email} or group has no members.")
+                return
+
+            # Replace group email with member emails
+            users = members
+            messagebox.showinfo("Group Members", f"Fetched {len(users)} members from group {group_email}")
 
         action = self.filter_action.get()
 
