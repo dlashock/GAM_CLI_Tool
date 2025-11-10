@@ -525,17 +525,17 @@ def update_user_info(users_data, dry_run=False):
             if 'employeeId' in user_data and user_data['employeeId']:
                 cmd.extend(['externalid', 'organization', user_data['employeeId'].strip()])
             if 'jobTitle' in user_data and user_data['jobTitle']:
-                cmd.extend(['organization', 'title', user_data['jobTitle'].strip()])
+                cmd.extend(['organization', 'customtype', '', 'title', user_data['jobTitle'].strip(), 'primary'])
             if 'manager' in user_data and user_data['manager']:
                 cmd.extend(['relation', 'manager', user_data['manager'].strip()])
             if 'department' in user_data and user_data['department']:
-                cmd.extend(['organization', 'department', user_data['department'].strip()])
+                cmd.extend(['organization', 'customtype', '', 'department', user_data['department'].strip(), 'primary'])
             if 'costCenter' in user_data and user_data['costCenter']:
-                cmd.extend(['organization', 'costcenter', user_data['costCenter'].strip()])
+                cmd.extend(['organization', 'customtype', '', 'costcenter', user_data['costCenter'].strip(), 'primary'])
             if 'buildingId' in user_data and user_data['buildingId']:
-                cmd.extend(['location', 'buildingid', user_data['buildingId'].strip()])
+                cmd.extend(['location', 'type', 'desk', 'buildingid', user_data['buildingId'].strip(), 'endlocation'])
             if 'address' in user_data and user_data['address']:
-                cmd.extend(['address', 'type', 'work', 'unstructured', user_data['address'].strip()])
+                cmd.extend(['address', 'type', 'work', 'unstructured', user_data['address'].strip(), 'primary'])
 
             # GAL visibility
             if 'galHidden' in user_data:
@@ -987,7 +987,10 @@ def list_org_units():
 
 def enable_mfa(users):
     """
-    Enable Multi-Factor Authentication (MFA) for users.
+    Enable Multi-Factor Authentication (MFA) enforcement for users.
+
+    Note: GAM does not support directly enrolling users in 2SV. This command
+    enforces 2SV requirement, prompting users to enroll at next login.
 
     Args:
         users (list): List of user emails
@@ -1009,11 +1012,12 @@ def enable_mfa(users):
             'email': user_email,
             'current': i,
             'total': total,
-            'message': f"Enabling MFA for {user_email}..."
+            'message': f"Enforcing MFA for {user_email}..."
         }
 
         try:
-            cmd = [get_gam_command(), 'update', 'user', user_email, 'enroll2sv']
+            # GAM doesn't support direct 2SV enrollment - we enforce at user level
+            cmd = [get_gam_command(), 'user', user_email, 'update', '2sv', 'enforced', 'true']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -1021,7 +1025,7 @@ def enable_mfa(users):
                 yield {
                     'status': 'success',
                     'email': user_email,
-                    'message': f"✓ Enabled MFA for {user_email}"
+                    'message': f"✓ Enforced MFA requirement for {user_email}"
                 }
             else:
                 failure_count += 1
@@ -1031,7 +1035,7 @@ def enable_mfa(users):
                 yield {
                     'status': 'error',
                     'email': user_email,
-                    'message': f"✗ Failed to enable MFA for {user_email}"
+                    'message': f"✗ Failed to enforce MFA for {user_email}"
                 }
 
         except Exception as e:
@@ -1042,7 +1046,7 @@ def enable_mfa(users):
             yield {
                 'status': 'error',
                 'email': user_email,
-                'message': f"✗ Error enabling MFA for {user_email}"
+                'message': f"✗ Error enforcing MFA for {user_email}"
             }
 
     return {
@@ -1080,7 +1084,7 @@ def disable_mfa(users):
         }
 
         try:
-            cmd = [get_gam_command(), 'update', 'user', user_email, 'turn2svoff']
+            cmd = [get_gam_command(), 'user', user_email, 'turnoff2sv']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
@@ -1123,6 +1127,9 @@ def remove_mfa_factor(users):
     """
     Remove MFA enrollment/factors for users.
 
+    Note: This uses turnoff2sv which removes all registered 2SV methods
+    and disables 2SV for the user.
+
     Args:
         users (list): List of user emails
 
@@ -1147,7 +1154,8 @@ def remove_mfa_factor(users):
         }
 
         try:
-            cmd = [get_gam_command(), 'user', user_email, 'remove2sv']
+            # turnoff2sv removes all registered 2SV factors
+            cmd = [get_gam_command(), 'user', user_email, 'turnoff2sv']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
