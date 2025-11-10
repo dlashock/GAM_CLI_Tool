@@ -44,6 +44,9 @@ class EmailWindow(BaseOperationWindow):
         self.create_labels_tab()
         self.create_filters_tab()
 
+        # Auto-load comboboxes on window initialization
+        self.after(100, self.initialize_comboboxes)
+
     # ==================== TAB 1: DELETE MESSAGES ====================
 
     def create_delete_messages_tab(self):
@@ -865,3 +868,10 @@ class EmailWindow(BaseOperationWindow):
                 self.filters_progress_frame,
                 users, filter_id
             )
+
+    # ==================== COMBOBOX INITIALIZATION ====================
+
+    def initialize_comboboxes(self):
+        """Auto-load all comboboxes on window initialization."""
+        # Load users for delegates combobox
+        self.load_users_for_delegates()

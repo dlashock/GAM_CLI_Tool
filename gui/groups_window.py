@@ -48,6 +48,9 @@ class GroupsWindow(BaseOperationWindow):
         self.create_group_aliases_tab()
         self.create_user_groups_tab()
 
+        # Auto-load comboboxes on window initialization
+        self.after(100, self.initialize_comboboxes)
+
     # ==================== TAB 1: CREATE GROUPS ====================
 
     def create_create_groups_tab(self):
@@ -1234,3 +1237,18 @@ class GroupsWindow(BaseOperationWindow):
         if file_path:
             entry_widget.delete(0, tk.END)
             entry_widget.insert(0, file_path)
+
+    # ==================== COMBOBOX INITIALIZATION ====================
+
+    def initialize_comboboxes(self):
+        """Auto-load all comboboxes on window initialization."""
+        # Load groups for manage members combobox
+        self.load_groups_for_manage_members()
+        # Load groups for list members combobox
+        self.load_groups_for_list_members()
+        # Load groups for group settings combobox
+        self.load_groups_for_settings()
+        # Load groups for group aliases combobox
+        self.load_groups_for_aliases()
+        # Load users for user groups combobox
+        self.load_users_for_user_groups()

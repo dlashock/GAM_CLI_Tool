@@ -51,6 +51,9 @@ class UsersWindow(BaseOperationWindow):
         self.create_manage_aliases_tab()
         self.create_mfa_tab()
 
+        # Auto-load comboboxes on window initialization
+        self.after(100, self.initialize_comboboxes)
+
     # ==================== TAB 1: CREATE USERS ====================
 
     def create_create_users_tab(self):
@@ -1617,7 +1620,7 @@ class UsersWindow(BaseOperationWindow):
             )
         elif action == 'remove_factor':
             self.run_operation(
-                users_module.remove_mfa_factor,
+                users_module.disable_mfa,
                 self.mfa_progress,
                 users
             )
@@ -1627,3 +1630,14 @@ class UsersWindow(BaseOperationWindow):
                 self.mfa_progress,
                 users
             )
+
+    # ==================== COMBOBOX INITIALIZATION ====================
+
+    def initialize_comboboxes(self):
+        """Auto-load all comboboxes on window initialization."""
+        # Load users for delete drive transfer combobox
+        self.load_users_for_delete_drive()
+        # Load users for suspend drive transfer combobox
+        self.load_users_for_suspend_drive()
+        # Load users for manage OU combobox
+        self.load_users_for_manage_ou()
