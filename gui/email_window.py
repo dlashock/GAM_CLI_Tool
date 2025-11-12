@@ -236,14 +236,49 @@ class EmailWindow(BaseOperationWindow):
             from utils.workspace_data import fetch_users
             users = fetch_users()
             if users:
-                self.after(0, lambda: self.delegate_email_entry.configure(values=sorted(users)))
+                sorted_users = sorted(users)
+                self.after(0, lambda: self.delegate_email_entry.configure(values=sorted_users))
                 self.after(0, lambda: self.delegate_email_entry.set(""))
+                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.delegate_email_entry, sorted_users))
             else:
                 self.after(0, lambda: self.delegate_email_entry.configure(values=[]))
                 self.after(0, lambda: self.delegate_email_entry.set(""))
 
         import threading
         threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def enable_standalone_fuzzy_search(self, combobox, all_values):
+        """
+        Enable fuzzy search on a standalone combobox.
+
+        Args:
+            combobox: The combobox widget
+            all_values: Full list of values for filtering
+        """
+        # Store the full list on the combobox itself
+        combobox._all_values = all_values
+
+        def on_keyrelease(event):
+            """Filter combobox values based on typed text."""
+            typed = combobox.get().lower()
+
+            if not typed:
+                # If empty, restore all values
+                combobox['values'] = combobox._all_values
+                return
+
+            # Filter values that contain the typed text
+            filtered = [item for item in combobox._all_values if typed in item.lower()]
+
+            # Update combobox with filtered values
+            combobox['values'] = filtered
+
+            # Keep dropdown open if there are matches
+            if filtered and not event.keysym in ('Up', 'Down', 'Return', 'Escape'):
+                combobox.event_generate('<Down>')
+
+        # Bind the keyrelease event
+        combobox.bind('<KeyRelease>', on_keyrelease)
 
     def execute_delegates(self):
         """Execute delegate operation."""

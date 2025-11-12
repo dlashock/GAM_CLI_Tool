@@ -1541,13 +1541,7 @@ class UsersWindow(BaseOperationWindow):
         action_frame = ttk.LabelFrame(tab, text="MFA Action", padding="10")
         action_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.mfa_action = tk.StringVar(value="enable")
-        ttk.Radiobutton(
-            action_frame,
-            text="Enable MFA",
-            variable=self.mfa_action,
-            value="enable"
-        ).pack(side=tk.LEFT, padx=(0, 20))
+        self.mfa_action = tk.StringVar(value="disable")
 
         ttk.Radiobutton(
             action_frame,
@@ -1558,17 +1552,19 @@ class UsersWindow(BaseOperationWindow):
 
         ttk.Radiobutton(
             action_frame,
-            text="Remove MFA Factor",
-            variable=self.mfa_action,
-            value="remove_factor"
-        ).pack(side=tk.LEFT, padx=(0, 20))
-
-        ttk.Radiobutton(
-            action_frame,
             text="Retrieve Backup Codes",
             variable=self.mfa_action,
             value="backup_codes"
-        ).pack(side=tk.LEFT)
+        ).pack(side=tk.LEFT, padx=(0, 20))
+
+        # Info label about enabling MFA
+        info_label = ttk.Label(
+            action_frame,
+            text="Note: To enable MFA, configure enforcement at OU/Domain level via Google Admin Console",
+            font=('Arial', 9),
+            foreground='#666666'
+        )
+        info_label.pack(side=tk.LEFT, padx=(20, 0))
 
         # Target selection (simplified - no "All Users" or "Group" for safety)
         self.mfa_target = self.create_combobox_user_target_selection_frame(tab, 'mfa')
@@ -1600,9 +1596,7 @@ class UsersWindow(BaseOperationWindow):
         # Confirmation for multiple users
         if len(users) > 1:
             action_text = {
-                'enable': 'enable MFA for',
                 'disable': 'disable MFA for',
-                'remove_factor': 'remove MFA factor from',
                 'backup_codes': 'retrieve backup codes for'
             }.get(action, 'perform MFA action on')
 
@@ -1613,19 +1607,7 @@ class UsersWindow(BaseOperationWindow):
                 return
 
         # Execute appropriate action
-        if action == 'enable':
-            self.run_operation(
-                users_module.enable_mfa,
-                self.mfa_progress,
-                users
-            )
-        elif action == 'disable':
-            self.run_operation(
-                users_module.disable_mfa,
-                self.mfa_progress,
-                users
-            )
-        elif action == 'remove_factor':
+        if action == 'disable':
             self.run_operation(
                 users_module.disable_mfa,
                 self.mfa_progress,
@@ -1665,7 +1647,9 @@ class UsersWindow(BaseOperationWindow):
             from utils.workspace_data import fetch_users
             users = fetch_users()
             if users:
-                self.after(0, lambda: self.reset_password_email.configure(values=sorted(users)))
+                sorted_users = sorted(users)
+                self.after(0, lambda: self.reset_password_email.configure(values=sorted_users))
+                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.reset_password_email, sorted_users))
 
         import threading
         threading.Thread(target=fetch_and_populate, daemon=True).start()
@@ -1676,7 +1660,9 @@ class UsersWindow(BaseOperationWindow):
             from utils.workspace_data import fetch_users
             users = fetch_users()
             if users:
-                self.after(0, lambda: self.update_info_email.configure(values=sorted(users)))
+                sorted_users = sorted(users)
+                self.after(0, lambda: self.update_info_email.configure(values=sorted_users))
+                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.update_info_email, sorted_users))
 
         import threading
         threading.Thread(target=fetch_and_populate, daemon=True).start()
@@ -1687,7 +1673,42 @@ class UsersWindow(BaseOperationWindow):
             from utils.workspace_data import fetch_users
             users = fetch_users()
             if users:
-                self.after(0, lambda: self.manage_aliases_email.configure(values=sorted(users)))
+                sorted_users = sorted(users)
+                self.after(0, lambda: self.manage_aliases_email.configure(values=sorted_users))
+                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.manage_aliases_email, sorted_users))
 
         import threading
         threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def enable_standalone_fuzzy_search(self, combobox, all_values):
+        """
+        Enable fuzzy search on a standalone combobox (not using base framework).
+
+        Args:
+            combobox: The combobox widget
+            all_values: Full list of values for filtering
+        """
+        # Store the full list on the combobox itself
+        combobox._all_values = all_values
+
+        def on_keyrelease(event):
+            """Filter combobox values based on typed text."""
+            typed = combobox.get().lower()
+
+            if not typed:
+                # If empty, restore all values
+                combobox['values'] = combobox._all_values
+                return
+
+            # Filter values that contain the typed text
+            filtered = [item for item in combobox._all_values if typed in item.lower()]
+
+            # Update combobox with filtered values
+            combobox['values'] = filtered
+
+            # Keep dropdown open if there are matches
+            if filtered and not event.keysym in ('Up', 'Down', 'Return', 'Escape'):
+                combobox.event_generate('<Down>')
+
+        # Bind the keyrelease event
+        combobox.bind('<KeyRelease>', on_keyrelease)

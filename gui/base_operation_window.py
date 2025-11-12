@@ -981,9 +981,52 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         combobox = getattr(self, f"{tab_id}_combobox")
 
         if items:
-            combobox['values'] = sorted(items)
+            sorted_items = sorted(items)
+            combobox['values'] = sorted_items
+            # Store full list for fuzzy search
+            setattr(self, f"{tab_id}_combobox_all_values", sorted_items)
+            # Enable fuzzy search on this combobox
+            self.enable_fuzzy_search(combobox, tab_id)
         else:
             combobox['values'] = []
+
+    def enable_fuzzy_search(self, combobox, tab_id):
+        """
+        Enable fuzzy search on a combobox.
+
+        Args:
+            combobox: The combobox widget
+            tab_id: Tab identifier for storing full values list
+        """
+        def on_keyrelease(event):
+            """Filter combobox values based on typed text."""
+            typed = combobox.get().lower()
+
+            if not typed:
+                # If empty, restore all values
+                if hasattr(self, f"{tab_id}_combobox_all_values"):
+                    all_values = getattr(self, f"{tab_id}_combobox_all_values")
+                    combobox['values'] = all_values
+                return
+
+            # Get all values
+            if hasattr(self, f"{tab_id}_combobox_all_values"):
+                all_values = getattr(self, f"{tab_id}_combobox_all_values")
+            else:
+                all_values = combobox['values']
+
+            # Filter values that contain the typed text (fuzzy match)
+            filtered = [item for item in all_values if typed in item.lower()]
+
+            # Update combobox with filtered values
+            combobox['values'] = filtered
+
+            # Keep the dropdown open if there are matches
+            if filtered and not event.keysym in ('Up', 'Down', 'Return', 'Escape'):
+                combobox.event_generate('<Down>')
+
+        # Bind the keyrelease event
+        combobox.bind('<KeyRelease>', on_keyrelease)
 
     def get_target_users(self, tab_id):
         """
