@@ -55,7 +55,7 @@ class EmailWindow(BaseOperationWindow):
         self.notebook.add(tab, text="Delete Messages")
 
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "delete_msg")
+        target_frame = self.create_combobox_target_selection_frame(tab, "delete_msg")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -184,7 +184,7 @@ class EmailWindow(BaseOperationWindow):
         self.notebook.add(tab, text="Manage Delegates")
 
         # Target selection (simplified - no "All Users" or "Group")
-        target_frame = self.create_single_user_target_selection_frame(tab, "delegates")
+        target_frame = self.create_combobox_user_target_selection_frame(tab, "delegates")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -293,7 +293,7 @@ class EmailWindow(BaseOperationWindow):
         self.notebook.add(tab, text="Manage Signatures")
 
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "signatures")
+        target_frame = self.create_combobox_target_selection_frame(tab, "signatures")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -421,7 +421,7 @@ class EmailWindow(BaseOperationWindow):
         self.notebook.add(tab, text="Manage Forwarding")
 
         # Target selection (simplified - no "All Users" or "Group")
-        target_frame = self.create_single_user_target_selection_frame(tab, "forwarding")
+        target_frame = self.create_combobox_user_target_selection_frame(tab, "forwarding")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -514,7 +514,7 @@ class EmailWindow(BaseOperationWindow):
         self.notebook.add(tab, text="Manage Labels")
 
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "labels")
+        target_frame = self.create_combobox_target_selection_frame(tab, "labels")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -678,7 +678,7 @@ class EmailWindow(BaseOperationWindow):
         self.notebook.add(tab, text="Manage Filters")
 
         # Target selection
-        target_frame = self.create_target_selection_frame(tab, "filters")
+        target_frame = self.create_combobox_target_selection_frame(tab, "filters")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # Operation parameters
@@ -873,5 +873,13 @@ class EmailWindow(BaseOperationWindow):
 
     def initialize_comboboxes(self):
         """Auto-load all comboboxes on window initialization."""
-        # Load users for delegates combobox
+        # Load users for target selection comboboxes
+        self.load_users_combobox('delete_msg')
+        self.load_users_combobox('delegates')
+        self.load_users_combobox('signatures')
+        self.load_users_combobox('forwarding')
+        self.load_users_combobox('labels')
+        self.load_users_combobox('filters')
+
+        # Load users for delegates combobox (the delegate email field)
         self.load_users_for_delegates()

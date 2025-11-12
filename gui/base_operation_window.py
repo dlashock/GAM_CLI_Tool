@@ -122,6 +122,243 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
     # ==================== TARGET SELECTION FRAMEWORK ====================
 
+    def create_combobox_user_target_selection_frame(self, parent, tab_id):
+        """
+        Create target selection frame using combobox for user selection.
+        Combobox combines "Single User" entry and "Select from List" functionality.
+
+        Args:
+            parent: Parent widget
+            tab_id: Unique identifier for this tab
+
+        Returns:
+            ttk.LabelFrame: The target selection frame
+        """
+        frame = ttk.LabelFrame(parent, text="Target Users", padding="10")
+
+        # Create variable for target type
+        target_var = tk.StringVar(value="combobox")
+        setattr(self, f"{tab_id}_target_var", target_var)
+
+        # Radio buttons for target type (simplified - combobox or CSV)
+        options_frame = ttk.Frame(frame)
+        options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Select User",
+            variable=target_var,
+            value="combobox",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="CSV File",
+            variable=target_var,
+            value="csv",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Input frame (changes based on selection)
+        input_frame = ttk.Frame(frame)
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        setattr(self, f"{tab_id}_input_frame", input_frame)
+
+        # Combobox frame (replaces single user entry + list)
+        combobox_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_combobox_frame", combobox_frame)
+
+        ttk.Label(combobox_frame, text="User Email:").pack(side=tk.LEFT, padx=(0, 5))
+        combobox = ttk.Combobox(combobox_frame, width=40)
+        combobox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_combobox", combobox)
+
+        # CSV frame
+        csv_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_csv_frame", csv_frame)
+
+        csv_entry = ttk.Entry(csv_frame, width=50)
+        csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        setattr(self, f"{tab_id}_csv_entry", csv_entry)
+
+        ttk.Button(
+            csv_frame,
+            text="Browse",
+            command=lambda: self.browse_csv(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Show initial input (combobox)
+        self.update_target_input(tab_id)
+
+        return frame
+
+    def create_combobox_group_target_selection_frame(self, parent, tab_id):
+        """
+        Create target selection frame using combobox for group selection.
+
+        Args:
+            parent: Parent widget
+            tab_id: Unique identifier for this tab
+
+        Returns:
+            ttk.LabelFrame: The target selection frame
+        """
+        frame = ttk.LabelFrame(parent, text="Target Groups", padding="10")
+
+        # Create variable for target type
+        target_var = tk.StringVar(value="combobox")
+        setattr(self, f"{tab_id}_target_var", target_var)
+
+        # Radio buttons for target type
+        options_frame = ttk.Frame(frame)
+        options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Select Group",
+            variable=target_var,
+            value="combobox",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="CSV File",
+            variable=target_var,
+            value="csv",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Input frame (changes based on selection)
+        input_frame = ttk.Frame(frame)
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        setattr(self, f"{tab_id}_input_frame", input_frame)
+
+        # Combobox frame
+        combobox_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_combobox_frame", combobox_frame)
+
+        ttk.Label(combobox_frame, text="Group Email:").pack(side=tk.LEFT, padx=(0, 5))
+        combobox = ttk.Combobox(combobox_frame, width=40)
+        combobox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_combobox", combobox)
+
+        # CSV frame
+        csv_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_csv_frame", csv_frame)
+
+        csv_entry = ttk.Entry(csv_frame, width=50)
+        csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        setattr(self, f"{tab_id}_csv_entry", csv_entry)
+
+        ttk.Button(
+            csv_frame,
+            text="Browse",
+            command=lambda: self.browse_csv(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Show initial input (combobox)
+        self.update_target_input(tab_id)
+
+        return frame
+
+    def create_combobox_target_selection_frame(self, parent, tab_id):
+        """
+        Create target selection frame with combobox replacing Single User + Select from List.
+        Includes Group, All Users, and CSV options.
+
+        Args:
+            parent: Parent widget
+            tab_id: Unique identifier for this tab
+
+        Returns:
+            ttk.LabelFrame: The target selection frame
+        """
+        frame = ttk.LabelFrame(parent, text="Target Selection", padding="10")
+
+        # Create variable for target type
+        target_var = tk.StringVar(value="combobox")
+        setattr(self, f"{tab_id}_target_var", target_var)
+
+        # Radio buttons for target type
+        options_frame = ttk.Frame(frame)
+        options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Select User",
+            variable=target_var,
+            value="combobox",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="Group",
+            variable=target_var,
+            value="group",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="All Users",
+            variable=target_var,
+            value="all",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Radiobutton(
+            options_frame,
+            text="CSV File",
+            variable=target_var,
+            value="csv",
+            command=lambda: self.update_target_input(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Input frame (changes based on selection)
+        input_frame = ttk.Frame(frame)
+        input_frame.pack(fill=tk.BOTH, expand=True)
+        setattr(self, f"{tab_id}_input_frame", input_frame)
+
+        # Combobox frame (for user selection)
+        combobox_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_combobox_frame", combobox_frame)
+
+        ttk.Label(combobox_frame, text="User Email:").pack(side=tk.LEFT, padx=(0, 5))
+        combobox = ttk.Combobox(combobox_frame, width=40)
+        combobox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_combobox", combobox)
+
+        # Group entry frame
+        group_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_entry_frame", group_frame)
+
+        ttk.Label(group_frame, text="Group Email:").pack(side=tk.LEFT, padx=(0, 5))
+        entry = ttk.Entry(group_frame, width=40)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_entry", entry)
+
+        # CSV frame
+        csv_frame = ttk.Frame(input_frame)
+        setattr(self, f"{tab_id}_csv_frame", csv_frame)
+
+        csv_entry = ttk.Entry(csv_frame, width=50)
+        csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        setattr(self, f"{tab_id}_csv_entry", csv_entry)
+
+        ttk.Button(
+            csv_frame,
+            text="Browse",
+            command=lambda: self.browse_csv(tab_id)
+        ).pack(side=tk.LEFT)
+
+        # Show initial input (combobox)
+        self.update_target_input(tab_id)
+
+        return frame
+
     def create_single_user_target_selection_frame(self, parent, tab_id):
         """
         Create simplified target selection frame for operations that should not
@@ -566,22 +803,36 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         target_var = getattr(self, f"{tab_id}_target_var")
         target = target_var.get()
 
-        # Hide all frames
-        entry_frame = getattr(self, f"{tab_id}_entry_frame")
-        csv_frame = getattr(self, f"{tab_id}_csv_frame")
-        list_frame = getattr(self, f"{tab_id}_list_frame")
+        # Hide all possible frames (some may not exist for certain tab types)
+        frames_to_hide = [
+            f"{tab_id}_entry_frame",
+            f"{tab_id}_csv_frame",
+            f"{tab_id}_list_frame",
+            f"{tab_id}_combobox_frame"
+        ]
 
-        entry_frame.pack_forget()
-        csv_frame.pack_forget()
-        list_frame.pack_forget()
+        for frame_name in frames_to_hide:
+            if hasattr(self, frame_name):
+                frame = getattr(self, frame_name)
+                frame.pack_forget()
 
         # Show appropriate frame
-        if target in ["single", "group"]:
-            entry_frame.pack(fill=tk.X, pady=(5, 0))
+        if target == "combobox":
+            if hasattr(self, f"{tab_id}_combobox_frame"):
+                combobox_frame = getattr(self, f"{tab_id}_combobox_frame")
+                combobox_frame.pack(fill=tk.X, pady=(5, 0))
+        elif target in ["single", "group"]:
+            if hasattr(self, f"{tab_id}_entry_frame"):
+                entry_frame = getattr(self, f"{tab_id}_entry_frame")
+                entry_frame.pack(fill=tk.X, pady=(5, 0))
         elif target == "csv":
-            csv_frame.pack(fill=tk.X, pady=(5, 0))
+            if hasattr(self, f"{tab_id}_csv_frame"):
+                csv_frame = getattr(self, f"{tab_id}_csv_frame")
+                csv_frame.pack(fill=tk.X, pady=(5, 0))
         elif target == "list":
-            list_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+            if hasattr(self, f"{tab_id}_list_frame"):
+                list_frame = getattr(self, f"{tab_id}_list_frame")
+                list_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
         # "all" shows no input
 
     def browse_csv(self, tab_id):
@@ -678,6 +929,62 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         else:
             listbox.insert(tk.END, "(No groups found or error fetching)")
 
+    def load_users_combobox(self, tab_id):
+        """
+        Load users into combobox for selection.
+
+        Args:
+            tab_id: Tab identifier
+        """
+        if not hasattr(self, f"{tab_id}_combobox"):
+            return
+
+        combobox = getattr(self, f"{tab_id}_combobox")
+
+        # Fetch users in thread
+        def fetch_and_populate():
+            users = fetch_users()
+            self.after(0, lambda: self.populate_combobox(tab_id, users))
+
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def load_groups_combobox(self, tab_id):
+        """
+        Load groups into combobox for selection.
+
+        Args:
+            tab_id: Tab identifier
+        """
+        if not hasattr(self, f"{tab_id}_combobox"):
+            return
+
+        combobox = getattr(self, f"{tab_id}_combobox")
+
+        # Fetch groups in thread
+        def fetch_and_populate():
+            groups = fetch_groups()
+            self.after(0, lambda: self.populate_combobox(tab_id, groups))
+
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def populate_combobox(self, tab_id, items):
+        """
+        Populate combobox with items (users or groups).
+
+        Args:
+            tab_id: Tab identifier
+            items: List of email addresses
+        """
+        if not hasattr(self, f"{tab_id}_combobox"):
+            return
+
+        combobox = getattr(self, f"{tab_id}_combobox")
+
+        if items:
+            combobox['values'] = sorted(items)
+        else:
+            combobox['values'] = []
+
     def get_target_users(self, tab_id):
         """
         Get the list of target users based on selection.
@@ -691,7 +998,15 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         target_var = getattr(self, f"{tab_id}_target_var")
         target = target_var.get()
 
-        if target == "single":
+        if target == "combobox":
+            combobox = getattr(self, f"{tab_id}_combobox")
+            email = combobox.get().strip()
+            if not email or '@' not in email:
+                messagebox.showerror("Validation Error", "Please enter or select a valid email address.")
+                return None
+            return [email]
+
+        elif target == "single":
             entry = getattr(self, f"{tab_id}_entry")
             email = entry.get().strip()
             if not email or '@' not in email:
@@ -767,7 +1082,15 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         target_var = getattr(self, f"{tab_id}_target_var")
         target = target_var.get()
 
-        if target == "single":
+        if target == "combobox":
+            combobox = getattr(self, f"{tab_id}_combobox")
+            email = combobox.get().strip()
+            if not email or '@' not in email:
+                messagebox.showerror("Validation Error", "Please enter or select a valid group email address.")
+                return None
+            return [email]
+
+        elif target == "single":
             entry = getattr(self, f"{tab_id}_entry")
             email = entry.get().strip()
             if not email or '@' not in email:
@@ -862,7 +1185,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         progress_bar.pack(fill=tk.X, pady=(0, 10))
 
         # Results text area
-        results_text = scrolledtext.ScrolledText(frame, height=10, width=60, state=tk.DISABLED)
+        results_text = scrolledtext.ScrolledText(frame, height=5, width=60, state=tk.DISABLED)
         results_text.pack(fill=tk.BOTH, expand=True)
 
         # Store references
