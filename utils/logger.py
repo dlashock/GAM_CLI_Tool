@@ -49,9 +49,9 @@ def setup_logger(log_file=None):
         '[%(operation)s] ERROR: %(message)s'
     )
 
-    # Create file handler (mode='a' for append - persistent across runs)
+    # Create file handler (mode='w' to create new log file each run)
     try:
-        file_handler = logging.FileHandler(_log_file, mode='a', encoding='utf-8')
+        file_handler = logging.FileHandler(_log_file, mode='w', encoding='utf-8')
         file_handler.setLevel(logging.ERROR)
         file_handler.setFormatter(file_formatter)
         _logger.addHandler(file_handler)

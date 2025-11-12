@@ -1108,8 +1108,8 @@ def enable_mfa(users):
         }
 
         try:
-            # GAM doesn't support direct 2SV enrollment - we enforce at user level
-            cmd = [get_gam_command(), 'user', user_email, 'update', '2sv', 'enforced', 'true']
+            # Enable 2SV for user
+            cmd = [get_gam_command(), 'user', user_email, '2sv', 'on']
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:

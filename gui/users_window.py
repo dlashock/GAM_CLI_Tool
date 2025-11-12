@@ -327,7 +327,7 @@ class UsersWindow(BaseOperationWindow):
         warning.pack(pady=(0, 10), anchor=tk.W)
 
         # Target selection (simplified - no "All Users" or "Group" for safety)
-        self.delete_users_target = self.create_single_user_target_selection_frame(tab, 'delete_users')
+        self.delete_users_target = self.create_combobox_user_target_selection_frame(tab, 'delete_users')
         self.delete_users_target.pack(fill=tk.X, pady=(0, 10))
 
         # Drive transfer option
@@ -460,7 +460,7 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Target selection (simplified - no "All Users" or "Group" for safety)
-        self.suspend_restore_target = self.create_single_user_target_selection_frame(tab, 'suspend_restore')
+        self.suspend_restore_target = self.create_combobox_user_target_selection_frame(tab, 'suspend_restore')
         self.suspend_restore_target.pack(fill=tk.X, pady=(0, 10))
 
         # Suspend options frame (only visible when suspending)
@@ -635,7 +635,7 @@ class UsersWindow(BaseOperationWindow):
         self.reset_password_single_frame = ttk.LabelFrame(mode_container, text="Password Reset", padding="10")
 
         ttk.Label(self.reset_password_single_frame, text="User Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.reset_password_email = ttk.Entry(self.reset_password_single_frame, width=40)
+        self.reset_password_email = ttk.Combobox(self.reset_password_single_frame, width=37)
         self.reset_password_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
 
         ttk.Label(self.reset_password_single_frame, text="New Password*:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
@@ -813,61 +813,68 @@ class UsersWindow(BaseOperationWindow):
         mode_container = ttk.Frame(tab)
         mode_container.pack(fill=tk.X, pady=(0, 10))
 
-        # Single user input frame
+        # Single user input frame (2 columns side by side layout)
         self.update_info_single_frame = ttk.LabelFrame(mode_container, text="Update User Details", padding="10")
 
+        # Row 0: User Email | First Name
         ttk.Label(self.update_info_single_frame, text="User Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_email = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
+        self.update_info_email = ttk.Combobox(self.update_info_single_frame, width=17)
+        self.update_info_email.grid(row=0, column=1, sticky=tk.EW, pady=5, padx=(0, 15))
 
-        ttk.Label(self.update_info_single_frame, text="First Name:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_firstname = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_firstname.grid(row=1, column=1, sticky=tk.EW, pady=5)
+        ttk.Label(self.update_info_single_frame, text="First Name:").grid(row=0, column=2, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_firstname = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_firstname.grid(row=0, column=3, sticky=tk.EW, pady=5)
 
-        ttk.Label(self.update_info_single_frame, text="Last Name:").grid(row=2, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_lastname = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_lastname.grid(row=2, column=1, sticky=tk.EW, pady=5)
+        # Row 1: Last Name | Employee ID
+        ttk.Label(self.update_info_single_frame, text="Last Name:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_lastname = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_lastname.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(0, 15))
 
-        ttk.Label(self.update_info_single_frame, text="Employee ID:").grid(row=3, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_employee_id = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_employee_id.grid(row=3, column=1, sticky=tk.EW, pady=5)
+        ttk.Label(self.update_info_single_frame, text="Employee ID:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_employee_id = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_employee_id.grid(row=1, column=3, sticky=tk.EW, pady=5)
 
-        ttk.Label(self.update_info_single_frame, text="Job Title:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_job_title = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_job_title.grid(row=4, column=1, sticky=tk.EW, pady=5)
+        # Row 2: Job Title | Manager's Email
+        ttk.Label(self.update_info_single_frame, text="Job Title:").grid(row=2, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_job_title = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_job_title.grid(row=2, column=1, sticky=tk.EW, pady=5, padx=(0, 15))
 
-        ttk.Label(self.update_info_single_frame, text="Manager's Email:").grid(row=5, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_manager = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_manager.grid(row=5, column=1, sticky=tk.EW, pady=5)
+        ttk.Label(self.update_info_single_frame, text="Manager's Email:").grid(row=2, column=2, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_manager = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_manager.grid(row=2, column=3, sticky=tk.EW, pady=5)
 
-        ttk.Label(self.update_info_single_frame, text="Department:").grid(row=6, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_department = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_department.grid(row=6, column=1, sticky=tk.EW, pady=5)
+        # Row 3: Department | Cost Center
+        ttk.Label(self.update_info_single_frame, text="Department:").grid(row=3, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_department = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_department.grid(row=3, column=1, sticky=tk.EW, pady=5, padx=(0, 15))
 
-        ttk.Label(self.update_info_single_frame, text="Cost Center:").grid(row=7, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_cost_center = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_cost_center.grid(row=7, column=1, sticky=tk.EW, pady=5)
+        ttk.Label(self.update_info_single_frame, text="Cost Center:").grid(row=3, column=2, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_cost_center = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_cost_center.grid(row=3, column=3, sticky=tk.EW, pady=5)
 
-        ttk.Label(self.update_info_single_frame, text="Building ID:").grid(row=8, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_building_id = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_building_id.grid(row=8, column=1, sticky=tk.EW, pady=5)
+        # Row 4: Building ID | Address
+        ttk.Label(self.update_info_single_frame, text="Building ID:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_building_id = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_building_id.grid(row=4, column=1, sticky=tk.EW, pady=5, padx=(0, 15))
 
-        ttk.Label(self.update_info_single_frame, text="Address:").grid(row=9, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.update_info_address = ttk.Entry(self.update_info_single_frame, width=40)
-        self.update_info_address.grid(row=9, column=1, sticky=tk.EW, pady=5)
+        ttk.Label(self.update_info_single_frame, text="Address:").grid(row=4, column=2, sticky=tk.W, pady=5, padx=(0, 5))
+        self.update_info_address = ttk.Entry(self.update_info_single_frame, width=20)
+        self.update_info_address.grid(row=4, column=3, sticky=tk.EW, pady=5)
 
-        # GAL visibility checkbox
+        # Row 5: GAL visibility checkbox
         self.update_info_hide_from_gal = tk.BooleanVar()
         ttk.Checkbutton(
             self.update_info_single_frame,
             text="Hide from Global Address List (GAL)",
             variable=self.update_info_hide_from_gal
-        ).grid(row=10, column=1, sticky=tk.W, pady=5)
+        ).grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=5)
 
         ttk.Label(self.update_info_single_frame, text="* Required. Leave other fields blank to keep unchanged.",
-                 font=('Arial', 8), foreground='gray').grid(row=11, column=1, sticky=tk.W, pady=(5, 0))
+                 font=('Arial', 8), foreground='gray').grid(row=5, column=2, columnspan=2, sticky=tk.W, pady=5)
 
+        # Configure column weights for proper expansion
         self.update_info_single_frame.grid_columnconfigure(1, weight=1)
+        self.update_info_single_frame.grid_columnconfigure(3, weight=1)
 
         # CSV selection frame
         self.update_info_csv_frame = ttk.LabelFrame(mode_container, text="CSV File", padding="10")
@@ -1339,7 +1346,7 @@ class UsersWindow(BaseOperationWindow):
         self.manage_aliases_single_frame = ttk.LabelFrame(mode_container, text="Alias Details", padding="10")
 
         ttk.Label(self.manage_aliases_single_frame, text="User Email*:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.manage_aliases_email = ttk.Entry(self.manage_aliases_single_frame, width=40)
+        self.manage_aliases_email = ttk.Combobox(self.manage_aliases_single_frame, width=37)
         self.manage_aliases_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
 
         ttk.Label(self.manage_aliases_single_frame, text="Alias*:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
@@ -1564,7 +1571,7 @@ class UsersWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT)
 
         # Target selection (simplified - no "All Users" or "Group" for safety)
-        self.mfa_target = self.create_single_user_target_selection_frame(tab, 'mfa')
+        self.mfa_target = self.create_combobox_user_target_selection_frame(tab, 'mfa')
         self.mfa_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
@@ -1635,9 +1642,52 @@ class UsersWindow(BaseOperationWindow):
 
     def initialize_comboboxes(self):
         """Auto-load all comboboxes on window initialization."""
+        # Load users for target selection comboboxes
+        self.load_users_combobox('delete_users')
+        self.load_users_combobox('suspend_restore')
+        self.load_users_combobox('mfa')
+
+        # Load users for custom comboboxes
+        self.load_users_for_reset_password()
+        self.load_users_for_update_info()
+        self.load_users_for_manage_aliases()
+
         # Load users for delete drive transfer combobox
         self.load_users_for_delete_drive()
         # Load users for suspend drive transfer combobox
         self.load_users_for_suspend_drive()
         # Load users for manage OU combobox
         self.load_users_for_manage_ou()
+
+    def load_users_for_reset_password(self):
+        """Load users for reset password combobox."""
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.reset_password_email.configure(values=sorted(users)))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def load_users_for_update_info(self):
+        """Load users for update info combobox."""
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.update_info_email.configure(values=sorted(users)))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def load_users_for_manage_aliases(self):
+        """Load users for manage aliases combobox."""
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.manage_aliases_email.configure(values=sorted(users)))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()

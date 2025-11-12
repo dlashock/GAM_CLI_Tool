@@ -248,7 +248,7 @@ class GroupsWindow(BaseOperationWindow):
         warning.pack(pady=(0, 10), anchor=tk.W)
 
         # Target selection (use single-group selector for safety - no "All Groups" option)
-        self.delete_groups_target = self.create_single_group_target_selection_frame(tab, 'delete_groups')
+        self.delete_groups_target = self.create_combobox_group_target_selection_frame(tab, 'delete_groups')
         self.delete_groups_target.pack(fill=tk.X, pady=(0, 10))
 
         # Progress frame
@@ -369,7 +369,7 @@ class GroupsWindow(BaseOperationWindow):
 
         # Member email
         ttk.Label(self.manage_members_single_frame, text="Member Email:").grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
-        self.manage_members_email = ttk.Entry(self.manage_members_single_frame, width=50)
+        self.manage_members_email = ttk.Combobox(self.manage_members_single_frame, width=47)
         self.manage_members_email.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # Role selection (for add action)
@@ -1242,8 +1242,13 @@ class GroupsWindow(BaseOperationWindow):
 
     def initialize_comboboxes(self):
         """Auto-load all comboboxes on window initialization."""
+        # Load groups for target selection comboboxes
+        self.load_groups_combobox('delete_groups')
+
         # Load groups for manage members combobox
         self.load_groups_for_manage_members()
+        # Load users for member email combobox
+        self.load_users_for_member_email()
         # Load groups for list members combobox
         self.load_groups_for_list_members()
         # Load groups for group settings combobox
@@ -1252,3 +1257,14 @@ class GroupsWindow(BaseOperationWindow):
         self.load_groups_for_aliases()
         # Load users for user groups combobox
         self.load_users_for_user_groups()
+
+    def load_users_for_member_email(self):
+        """Load users for member email combobox in Manage Members."""
+        def fetch_and_populate():
+            from utils.workspace_data import fetch_users
+            users = fetch_users()
+            if users:
+                self.after(0, lambda: self.manage_members_email.configure(values=sorted(users)))
+
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
