@@ -1021,9 +1021,11 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             # Update combobox with filtered values
             combobox['values'] = filtered
 
-            # Keep the dropdown open if there are matches
+            # Open dropdown if there are matches, but keep focus on entry
             if filtered and not event.keysym in ('Up', 'Down', 'Return', 'Escape'):
                 combobox.event_generate('<Down>')
+                # Immediately restore focus to the entry field
+                combobox.focus_set()
 
         # Bind the keyrelease event
         combobox.bind('<KeyRelease>', on_keyrelease)
