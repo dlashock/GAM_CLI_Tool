@@ -862,6 +862,12 @@ class EmailWindow(BaseOperationWindow):
         self.load_users_combobox('labels')
         self.load_users_combobox('filters')
 
+        # Load groups for group comboboxes in target selection
+        self.load_group_combobox('delete_msg')
+        self.load_group_combobox('signatures')
+        self.load_group_combobox('labels')
+        self.load_group_combobox('filters')
+
         # Load users for delegates combobox (the delegate email field)
         self.load_users_for_delegates()
 
