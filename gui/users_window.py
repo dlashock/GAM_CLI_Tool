@@ -13,6 +13,7 @@ from tkinter import ttk, messagebox, filedialog, scrolledtext
 import csv
 
 from gui.base_operation_window import BaseOperationWindow
+from gui.password_generator import PasswordGeneratorDialog
 from modules import users as users_module
 from utils.csv_handler import validate_csv
 
@@ -113,8 +114,19 @@ class UsersWindow(BaseOperationWindow):
 
         # Password (required)
         ttk.Label(self.create_users_single_frame, text="Password*:").grid(row=3, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.create_user_password = ttk.Entry(self.create_users_single_frame, width=40, show="*")
-        self.create_user_password.grid(row=3, column=1, sticky=tk.EW, pady=5)
+
+        password_frame = ttk.Frame(self.create_users_single_frame)
+        password_frame.grid(row=3, column=1, sticky=tk.EW, pady=5)
+
+        self.create_user_password = ttk.Entry(password_frame, width=30, show="*")
+        self.create_user_password.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            password_frame,
+            text="Generate",
+            command=lambda: self.open_password_generator(self.create_user_password),
+            width=10
+        ).pack(side=tk.LEFT)
 
         # Org Unit (optional) - with dropdown
         ttk.Label(self.create_users_single_frame, text="Org Unit:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
@@ -639,8 +651,19 @@ class UsersWindow(BaseOperationWindow):
         self.reset_password_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
 
         ttk.Label(self.reset_password_single_frame, text="New Password*:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        self.reset_password_new = ttk.Entry(self.reset_password_single_frame, width=40, show="*")
-        self.reset_password_new.grid(row=1, column=1, sticky=tk.EW, pady=5)
+
+        password_frame = ttk.Frame(self.reset_password_single_frame)
+        password_frame.grid(row=1, column=1, sticky=tk.EW, pady=5)
+
+        self.reset_password_new = ttk.Entry(password_frame, width=30, show="*")
+        self.reset_password_new.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        ttk.Button(
+            password_frame,
+            text="Generate",
+            command=lambda: self.open_password_generator(self.reset_password_new),
+            width=10
+        ).pack(side=tk.LEFT)
 
         ttk.Label(self.reset_password_single_frame, text="* Required fields", font=('Arial', 8), foreground='gray').grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
 
@@ -1620,6 +1643,25 @@ class UsersWindow(BaseOperationWindow):
                 users
             )
 
+    # ==================== PASSWORD GENERATOR ====================
+
+    def open_password_generator(self, password_entry):
+        """
+        Open password generator dialog and set generated password to entry field.
+
+        Args:
+            password_entry: The entry widget to populate with generated password
+        """
+        def set_password(password):
+            # Temporarily show the password field
+            password_entry.config(show="")
+            password_entry.delete(0, tk.END)
+            password_entry.insert(0, password)
+            # Hide it again after 3 seconds
+            self.after(3000, lambda: password_entry.config(show="*"))
+
+        PasswordGeneratorDialog(self, set_password)
+
     # ==================== COMBOBOX INITIALIZATION ====================
 
     def initialize_comboboxes(self):
@@ -1706,9 +1748,11 @@ class UsersWindow(BaseOperationWindow):
             # Update combobox with filtered values
             combobox['values'] = filtered
 
-            # Keep dropdown open if there are matches
+            # Open dropdown if there are matches, but keep focus on entry
             if filtered and not event.keysym in ('Up', 'Down', 'Return', 'Escape'):
                 combobox.event_generate('<Down>')
+                # Immediately restore focus to the entry field
+                combobox.focus_set()
 
         # Bind the keyrelease event
         combobox.bind('<KeyRelease>', on_keyrelease)
