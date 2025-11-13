@@ -16,21 +16,39 @@ A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/G
 - **Manage Labels** - Create or delete Gmail labels
 - **Manage Filters** - Create or delete email filters with flexible criteria
 
+### User Management (Fully Implemented)
+
+- **Create Users** - Single or bulk user creation from CSV
+- **Update User Info** - Update names, titles, phone numbers, and other attributes
+- **Suspend/Unsuspend Users** - Manage user account status
+- **Reset Passwords** - Individual or bulk password resets
+- **Manage Organizational Units** - Move users between OUs
+- **Manage Aliases** - Add or remove email aliases
+- **Change Primary Email** - Update user primary email addresses
+
+### Group Management (Fully Implemented)
+
+- **Create/Delete Groups** - Single or bulk group management
+- **Manage Members** - Add or remove group members
+- **Manage Roles** - Assign member, manager, or owner roles
+- **Update Group Settings** - Modify group configuration
+- **Manage Group Aliases** - Add or remove group email aliases
+- **Change Owners** - Transfer group ownership
+
 ### Bulk Operations Support
 
 - Process single users, groups, all users, or CSV lists
-- Multi-select from workspace user list
+- Multi-select from workspace user list with fuzzy search
 - Real-time progress tracking
 - Detailed success/failure reporting
 - Comprehensive error logging
 
 ### Coming Soon
 
-- Group Management
 - Google Workspace Reports
 - Calendar Operations
 - Drive Operations
-- ACL Management
+- Security Auditing (Non-Domain ACLs)
 
 ## Prerequisites
 
