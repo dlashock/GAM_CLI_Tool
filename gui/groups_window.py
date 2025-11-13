@@ -1159,14 +1159,6 @@ class GroupsWindow(BaseOperationWindow):
 
     def load_users_for_member_email(self):
         """Load users for member email combobox in Manage Members."""
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                sorted_users = sorted(users)
-                self.after(0, lambda: self.manage_members_email.configure(values=sorted_users))
-                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.manage_members_email, sorted_users))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.manage_members_email, fetch_users, enable_fuzzy=True)
 
