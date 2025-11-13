@@ -389,21 +389,8 @@ class UsersWindow(BaseOperationWindow):
 
     def load_users_for_delete_drive(self):
         """Load users for the delete Drive transfer dropdown."""
-        self.delete_drive_target['values'] = ["Loading..."]
-        self.delete_drive_target.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                self.after(0, lambda: self.delete_drive_target.configure(values=sorted(users)))
-                self.after(0, lambda: self.delete_drive_target.set(""))
-            else:
-                self.after(0, lambda: self.delete_drive_target.configure(values=[]))
-                self.after(0, lambda: self.delete_drive_target.set(""))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.delete_drive_target, fetch_users, enable_fuzzy=True)
 
     def execute_delete_users(self):
         """Execute delete users operation."""
@@ -540,39 +527,14 @@ class UsersWindow(BaseOperationWindow):
 
     def load_users_for_suspend_drive(self):
         """Load users for the suspend Drive transfer dropdown."""
-        self.suspend_drive_target['values'] = ["Loading..."]
-        self.suspend_drive_target.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                self.after(0, lambda: self.suspend_drive_target.configure(values=sorted(users)))
-                self.after(0, lambda: self.suspend_drive_target.set(""))
-            else:
-                self.after(0, lambda: self.suspend_drive_target.configure(values=[]))
-                self.after(0, lambda: self.suspend_drive_target.set(""))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.suspend_drive_target, fetch_users, enable_fuzzy=True)
 
     def load_ous_for_suspend(self):
         """Load OUs for the suspend OU move dropdown."""
-        self.suspend_target_ou['values'] = ["Loading..."]
-        self.suspend_target_ou.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_org_units
-            ous = fetch_org_units()
-            if ous:
-                self.after(0, lambda: self.suspend_target_ou.configure(values=sorted(ous)))
-                self.after(0, lambda: self.suspend_target_ou.set("/"))
-            else:
-                self.after(0, lambda: self.suspend_target_ou.configure(values=["/", "No OUs found"]))
-                self.after(0, lambda: self.suspend_target_ou.set("/"))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_org_units
+        self.load_combobox_async(self.suspend_target_ou, fetch_org_units,
+                                default_value="/", enable_fuzzy=True)
 
     def execute_suspend_restore(self):
         """Execute suspend/restore operation."""
@@ -1190,49 +1152,18 @@ class UsersWindow(BaseOperationWindow):
 
     def load_users_for_manage_ou(self):
         """Load users for the manage OU user email dropdown."""
-        self.manage_ou_email['values'] = ["Loading..."]
-        self.manage_ou_email.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                self.after(0, lambda: self.manage_ou_email.configure(values=sorted(users)))
-                self.after(0, lambda: self.manage_ou_email.set(""))
-            else:
-                self.after(0, lambda: self.manage_ou_email.configure(values=[]))
-                self.after(0, lambda: self.manage_ou_email.set(""))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.manage_ou_email, fetch_users, enable_fuzzy=True)
 
     def load_org_units_for_manage_ou(self):
         """Load organizational units for the manage OU dropdown."""
-        self.manage_ou_orgunit['values'] = ["Loading..."]
-        self.manage_ou_orgunit.set("Loading...")
-
-        def fetch_and_populate():
-            import modules.users as users_module
-            ous = users_module.list_org_units()
-            if ous:
-                self.after(0, lambda: self.manage_ou_orgunit.configure(values=sorted(ous)))
-                self.after(0, lambda: self.manage_ou_orgunit.set("/"))
-            else:
-                self.after(0, lambda: self.manage_ou_orgunit.configure(values=["/"]))
-                self.after(0, lambda: self.manage_ou_orgunit.set("/"))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        import modules.users as users_module
+        self.load_combobox_async(self.manage_ou_orgunit, users_module.list_org_units,
+                                default_value="/", enable_fuzzy=True)
 
     def browse_csv_for_manage_ou(self):
         """Browse for CSV file for manage OU."""
-        file_path = filedialog.askopenfilename(
-            title="Select CSV File",
-            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
-        )
-        if file_path:
-            self.manage_ou_csv_entry.delete(0, tk.END)
-            self.manage_ou_csv_entry.insert(0, file_path)
+        self.browse_csv_file(self.manage_ou_csv_entry, "Select OU Management CSV File")
 
     def execute_manage_ou(self):
         """Execute manage OU operation."""
@@ -1685,74 +1616,16 @@ class UsersWindow(BaseOperationWindow):
 
     def load_users_for_reset_password(self):
         """Load users for reset password combobox."""
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                sorted_users = sorted(users)
-                self.after(0, lambda: self.reset_password_email.configure(values=sorted_users))
-                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.reset_password_email, sorted_users))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.reset_password_email, fetch_users, enable_fuzzy=True)
 
     def load_users_for_update_info(self):
         """Load users for update info combobox."""
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                sorted_users = sorted(users)
-                self.after(0, lambda: self.update_info_email.configure(values=sorted_users))
-                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.update_info_email, sorted_users))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.update_info_email, fetch_users, enable_fuzzy=True)
 
     def load_users_for_manage_aliases(self):
         """Load users for manage aliases combobox."""
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                sorted_users = sorted(users)
-                self.after(0, lambda: self.manage_aliases_email.configure(values=sorted_users))
-                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.manage_aliases_email, sorted_users))
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.manage_aliases_email, fetch_users, enable_fuzzy=True)
 
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
-
-    def enable_standalone_fuzzy_search(self, combobox, all_values):
-        """
-        Enable fuzzy search on a standalone combobox (not using base framework).
-
-        Args:
-            combobox: The combobox widget
-            all_values: Full list of values for filtering
-        """
-        # Store the full list on the combobox itself
-        combobox._all_values = all_values
-
-        def on_keyrelease(event):
-            """Filter combobox values based on typed text."""
-            typed = combobox.get().lower()
-
-            if not typed:
-                # If empty, restore all values
-                combobox['values'] = combobox._all_values
-                return
-
-            # Filter values that contain the typed text
-            filtered = [item for item in combobox._all_values if typed in item.lower()]
-
-            # Update combobox with filtered values
-            combobox['values'] = filtered
-
-            # Open dropdown if there are matches, but keep focus on entry
-            if filtered and not event.keysym in ('Up', 'Down', 'Return', 'Escape'):
-                combobox.event_generate('<Down>')
-                # Immediately restore focus to the entry field
-                combobox.focus_set()
-
-        # Bind the keyrelease event
-        combobox.bind('<KeyRelease>', on_keyrelease)
