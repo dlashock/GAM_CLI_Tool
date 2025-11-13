@@ -331,14 +331,14 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         combobox.pack(side=tk.LEFT, fill=tk.X, expand=True)
         setattr(self, f"{tab_id}_combobox", combobox)
 
-        # Group entry frame
+        # Group combobox frame
         group_frame = ttk.Frame(input_frame)
-        setattr(self, f"{tab_id}_entry_frame", group_frame)
+        setattr(self, f"{tab_id}_group_frame", group_frame)
 
         ttk.Label(group_frame, text="Group Email:").pack(side=tk.LEFT, padx=(0, 5))
-        entry = ttk.Entry(group_frame, width=40)
-        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        setattr(self, f"{tab_id}_entry", entry)
+        group_combobox = ttk.Combobox(group_frame, width=40)
+        group_combobox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, f"{tab_id}_group_combobox", group_combobox)
 
         # CSV frame
         csv_frame = ttk.Frame(input_frame)
@@ -806,6 +806,7 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         # Hide all possible frames (some may not exist for certain tab types)
         frames_to_hide = [
             f"{tab_id}_entry_frame",
+            f"{tab_id}_group_frame",
             f"{tab_id}_csv_frame",
             f"{tab_id}_list_frame",
             f"{tab_id}_combobox_frame"
@@ -821,7 +822,11 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             if hasattr(self, f"{tab_id}_combobox_frame"):
                 combobox_frame = getattr(self, f"{tab_id}_combobox_frame")
                 combobox_frame.pack(fill=tk.X, pady=(5, 0))
-        elif target in ["single", "group"]:
+        elif target == "group":
+            if hasattr(self, f"{tab_id}_group_frame"):
+                group_frame = getattr(self, f"{tab_id}_group_frame")
+                group_frame.pack(fill=tk.X, pady=(5, 0))
+        elif target == "single":
             if hasattr(self, f"{tab_id}_entry_frame"):
                 entry_frame = getattr(self, f"{tab_id}_entry_frame")
                 entry_frame.pack(fill=tk.X, pady=(5, 0))
@@ -967,6 +972,22 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
         threading.Thread(target=fetch_and_populate, daemon=True).start()
 
+    def load_group_combobox(self, tab_id):
+        """
+        Load groups into group_combobox for "Group" selection option.
+
+        Args:
+            tab_id: Tab identifier
+        """
+        if not hasattr(self, f"{tab_id}_group_combobox"):
+            return
+
+        group_combobox = getattr(self, f"{tab_id}_group_combobox")
+
+        # Use the refactored load_combobox_async method
+        from utils.workspace_data import fetch_groups
+        self.load_combobox_async(group_combobox, fetch_groups, enable_fuzzy=True)
+
     def populate_combobox(self, tab_id, items):
         """
         Populate combobox with items (users or groups).
@@ -1060,10 +1081,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             return [email]
 
         elif target == "group":
-            entry = getattr(self, f"{tab_id}_entry")
-            group_email = entry.get().strip()
+            group_combobox = getattr(self, f"{tab_id}_group_combobox")
+            group_email = group_combobox.get().strip()
             if not group_email or '@' not in group_email:
-                messagebox.showerror("Validation Error", "Please enter a valid group email address.")
+                messagebox.showerror("Validation Error", "Please enter or select a valid group email address.")
                 return None
             return [group_email]
 

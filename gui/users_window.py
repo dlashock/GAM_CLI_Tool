@@ -130,19 +130,9 @@ class UsersWindow(BaseOperationWindow):
 
         # Org Unit (optional) - with dropdown
         ttk.Label(self.create_users_single_frame, text="Org Unit:").grid(row=4, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-
-        orgunit_frame = ttk.Frame(self.create_users_single_frame)
-        orgunit_frame.grid(row=4, column=1, sticky=tk.EW, pady=5)
-
-        self.create_user_orgunit = ttk.Combobox(orgunit_frame, values=["/"])
+        self.create_user_orgunit = ttk.Combobox(self.create_users_single_frame, values=["/"], width=40)
         self.create_user_orgunit.set("/")
-        self.create_user_orgunit.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        ttk.Button(
-            orgunit_frame,
-            text="Load OUs",
-            command=self.load_org_units_for_create_user
-        ).pack(side=tk.LEFT)
+        self.create_user_orgunit.grid(row=4, column=1, sticky=tk.EW, pady=5)
 
         ttk.Label(self.create_users_single_frame, text="* Required fields", font=('Arial', 8), foreground='gray').grid(row=5, column=1, sticky=tk.W, pady=(5, 0))
 
@@ -203,25 +193,9 @@ class UsersWindow(BaseOperationWindow):
 
     def load_org_units_for_create_user(self):
         """Load organizational units into combobox for create user."""
-        # Set loading indicator
-        self.create_user_orgunit['values'] = ["Loading..."]
-        self.create_user_orgunit.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_org_units
-            orgs = fetch_org_units()
-            if orgs:
-                # Update combobox in main thread
-                self.after(0, lambda: self.create_user_orgunit.configure(values=sorted(orgs)))
-                self.after(0, lambda: self.create_user_orgunit.set("/"))
-            else:
-                # Fallback to root if no OUs found
-                self.after(0, lambda: self.create_user_orgunit.configure(values=["/", "No OUs found"]))
-                self.after(0, lambda: self.create_user_orgunit.set("/"))
-
-        # Run in background thread
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_org_units
+        self.load_combobox_async(self.create_user_orgunit, fetch_org_units,
+                                default_value="/", enable_fuzzy=True)
 
     def browse_csv_for_create_users(self):
         """Browse for CSV file for create users."""
@@ -352,13 +326,7 @@ class UsersWindow(BaseOperationWindow):
         target_email_frame.grid(row=0, column=1, sticky=tk.EW, pady=5)
 
         self.delete_drive_target = ttk.Combobox(target_email_frame)
-        self.delete_drive_target.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        ttk.Button(
-            target_email_frame,
-            text="Load Users",
-            command=self.load_users_for_delete_drive
-        ).pack(side=tk.LEFT)
+        self.delete_drive_target.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         ttk.Label(drive_frame, text="(Leave blank to skip Drive transfer)", font=('Arial', 8), foreground='gray').grid(row=1, column=1, sticky=tk.W)
 
@@ -469,34 +437,15 @@ class UsersWindow(BaseOperationWindow):
         # Drive transfer option
         ttk.Label(self.suspend_options_frame, text="Transfer Drive files to:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
 
-        drive_email_frame = ttk.Frame(self.suspend_options_frame)
-        drive_email_frame.grid(row=0, column=1, sticky=tk.EW, pady=5)
-
-        self.suspend_drive_target = ttk.Combobox(drive_email_frame)
-        self.suspend_drive_target.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        ttk.Button(
-            drive_email_frame,
-            text="Load Users",
-            command=self.load_users_for_suspend_drive
-        ).pack(side=tk.LEFT)
+        self.suspend_drive_target = ttk.Combobox(self.suspend_options_frame, width=40)
+        self.suspend_drive_target.grid(row=0, column=1, sticky=tk.EW, pady=5)
 
         ttk.Label(self.suspend_options_frame, text="(Leave blank to skip Drive transfer)", font=('Arial', 8), foreground='gray').grid(row=1, column=1, sticky=tk.W)
 
         # OU move option
         ttk.Label(self.suspend_options_frame, text="Move to OU:").grid(row=2, column=0, sticky=tk.W, pady=(10, 5), padx=(0, 5))
-
-        ou_frame = ttk.Frame(self.suspend_options_frame)
-        ou_frame.grid(row=2, column=1, sticky=tk.EW, pady=(10, 5))
-
-        self.suspend_target_ou = ttk.Combobox(ou_frame, values=["/"])
-        self.suspend_target_ou.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        ttk.Button(
-            ou_frame,
-            text="Load OUs",
-            command=self.load_ous_for_suspend
-        ).pack(side=tk.LEFT)
+        self.suspend_target_ou = ttk.Combobox(self.suspend_options_frame, values=["/"], width=40)
+        self.suspend_target_ou.grid(row=2, column=1, sticky=tk.EW, pady=(10, 5))
 
         ttk.Label(self.suspend_options_frame, text="(Leave blank to keep current OU)", font=('Arial', 8), foreground='gray').grid(row=3, column=1, sticky=tk.W)
 
@@ -1066,32 +1015,14 @@ class UsersWindow(BaseOperationWindow):
 
         # User Email with dropdown
         ttk.Label(self.manage_ou_single_frame, text="User Email: *").grid(row=0, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        email_frame = ttk.Frame(self.manage_ou_single_frame)
-        email_frame.grid(row=0, column=1, sticky=tk.EW, pady=5)
-
-        self.manage_ou_email = ttk.Combobox(email_frame)
-        self.manage_ou_email.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        ttk.Button(
-            email_frame,
-            text="Load Users",
-            command=self.load_users_for_manage_ou
-        ).pack(side=tk.LEFT)
+        self.manage_ou_email = ttk.Combobox(self.manage_ou_single_frame, width=40)
+        self.manage_ou_email.grid(row=0, column=1, sticky=tk.EW, pady=5)
 
         # Organizational Unit with dropdown
         ttk.Label(self.manage_ou_single_frame, text="Organizational Unit: *").grid(row=1, column=0, sticky=tk.W, pady=5, padx=(0, 5))
-        ou_frame = ttk.Frame(self.manage_ou_single_frame)
-        ou_frame.grid(row=1, column=1, sticky=tk.EW, pady=5)
-
-        self.manage_ou_orgunit = ttk.Combobox(ou_frame, values=["/"])
+        self.manage_ou_orgunit = ttk.Combobox(self.manage_ou_single_frame, values=["/"], width=40)
         self.manage_ou_orgunit.set("/")
-        self.manage_ou_orgunit.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        ttk.Button(
-            ou_frame,
-            text="Load OUs",
-            command=self.load_org_units_for_manage_ou
-        ).pack(side=tk.LEFT)
+        self.manage_ou_orgunit.grid(row=1, column=1, sticky=tk.EW, pady=5)
 
         ttk.Label(self.manage_ou_single_frame, text="* Required fields", font=('Arial', 8), foreground='gray').grid(row=2, column=1, sticky=tk.W, pady=(5, 0))
 
@@ -1613,6 +1544,11 @@ class UsersWindow(BaseOperationWindow):
         self.load_users_for_suspend_drive()
         # Load users for manage OU combobox
         self.load_users_for_manage_ou()
+
+        # Load OUs for various comboboxes
+        self.load_org_units_for_create_user()
+        self.load_ous_for_suspend()
+        self.load_org_units_for_manage_ou()
 
     def load_users_for_reset_password(self):
         """Load users for reset password combobox."""

@@ -359,13 +359,9 @@ class GroupsWindow(BaseOperationWindow):
         self.manage_members_single_frame = ttk.LabelFrame(mode_container, text="Member Details", padding="10")
 
         # Group selection with dropdown
-        group_frame = ttk.Frame(self.manage_members_single_frame)
-        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-
-        ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
-        self.manage_members_group_combo = ttk.Combobox(group_frame, width=47, state='readonly')
-        self.manage_members_group_combo.pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_manage_members).pack(side=tk.LEFT)
+        ttk.Label(self.manage_members_single_frame, text="Group:").grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        self.manage_members_group_combo = ttk.Combobox(self.manage_members_single_frame, width=47)
+        self.manage_members_group_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # Member email
         ttk.Label(self.manage_members_single_frame, text="Member Email:").grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
@@ -440,24 +436,8 @@ class GroupsWindow(BaseOperationWindow):
 
     def load_groups_for_manage_members(self):
         """Load groups into combobox for manage members."""
-        # Set loading indicator
-        self.manage_members_group_combo['values'] = ["Loading..."]
-        self.manage_members_group_combo.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_groups
-            groups = fetch_groups()
-            if groups:
-                # Update combobox in main thread
-                self.after(0, lambda: self.manage_members_group_combo.configure(values=sorted(groups)))
-                self.after(0, lambda: self.manage_members_group_combo.set(""))
-            else:
-                self.after(0, lambda: self.manage_members_group_combo.configure(values=["No groups found"]))
-                self.after(0, lambda: self.manage_members_group_combo.set("No groups found"))
-
-        # Run in background thread
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_groups
+        self.load_combobox_async(self.manage_members_group_combo, fetch_groups, enable_fuzzy=True)
 
     def execute_manage_members(self):
         """Execute manage members operation."""
@@ -553,15 +533,8 @@ class GroupsWindow(BaseOperationWindow):
         group_frame.pack(fill=tk.X, pady=(0, 10))
 
         ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
-
-        self.list_members_combo = ttk.Combobox(group_frame, width=47, state='readonly')
+        self.list_members_combo = ttk.Combobox(group_frame, width=47)
         self.list_members_combo.pack(side=tk.LEFT, padx=(0, 10))
-
-        ttk.Button(
-            group_frame,
-            text="Load Groups",
-            command=self.load_groups_for_list_members
-        ).pack(side=tk.LEFT, padx=(0, 10))
 
         ttk.Button(
             group_frame,
@@ -583,21 +556,8 @@ class GroupsWindow(BaseOperationWindow):
 
     def load_groups_for_list_members(self):
         """Load groups into the combobox for list members."""
-        self.list_members_combo['values'] = ["Loading..."]
-        self.list_members_combo.current(0)
-        self.update_idletasks()
-
-        # Fetch groups in thread
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_groups
-            groups = fetch_groups()
-            if groups:
-                self.after(0, lambda: self.list_members_combo.configure(values=sorted(groups)))
-            else:
-                self.after(0, lambda: self.list_members_combo.configure(values=["(No groups found)"]))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_groups
+        self.load_combobox_async(self.list_members_combo, fetch_groups, enable_fuzzy=True)
 
     def execute_list_members(self):
         """Execute list members operation."""
@@ -670,13 +630,9 @@ class GroupsWindow(BaseOperationWindow):
         self.group_settings_single_frame = ttk.LabelFrame(mode_container, text="Group Settings", padding="10")
 
         # Group selection with dropdown
-        group_frame = ttk.Frame(self.group_settings_single_frame)
-        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-
-        ttk.Label(group_frame, text="Group:").pack(side=tk.LEFT, padx=(0, 5))
-        self.group_settings_group_combo = ttk.Combobox(group_frame, width=47, state='readonly')
-        self.group_settings_group_combo.pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_settings).pack(side=tk.LEFT)
+        ttk.Label(self.group_settings_single_frame, text="Group:").grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        self.group_settings_group_combo = ttk.Combobox(self.group_settings_single_frame, width=47)
+        self.group_settings_group_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # Common group settings
         settings_info = ttk.Label(
@@ -736,14 +692,12 @@ class GroupsWindow(BaseOperationWindow):
         self.group_settings_join.grid(row=4, column=1, sticky=tk.W, pady=(0, 10))
 
         # allowExternalMembers
-        ttk.Label(self.group_settings_single_frame, text="Allow External Members:").grid(row=5, column=0, sticky=tk.W)
-        self.group_settings_external = ttk.Combobox(
+        self.group_settings_external_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
             self.group_settings_single_frame,
-            values=["", "true - Allow external", "false - Organization only"],
-            width=47
-        )
-        self.group_settings_external.set("")
-        self.group_settings_external.grid(row=5, column=1, sticky=tk.W)
+            text="Allow External Members",
+            variable=self.group_settings_external_var
+        ).grid(row=5, column=0, columnspan=2, sticky=tk.W)
 
         self.group_settings_single_frame.grid_columnconfigure(1, weight=1)
 
@@ -805,24 +759,8 @@ class GroupsWindow(BaseOperationWindow):
 
     def load_groups_for_settings(self):
         """Load groups into combobox for group settings."""
-        # Set loading indicator
-        self.group_settings_group_combo['values'] = ["Loading..."]
-        self.group_settings_group_combo.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_groups
-            groups = fetch_groups()
-            if groups:
-                # Update combobox in main thread
-                self.after(0, lambda: self.group_settings_group_combo.configure(values=sorted(groups)))
-                self.after(0, lambda: self.group_settings_group_combo.set(""))
-            else:
-                self.after(0, lambda: self.group_settings_group_combo.configure(values=["No groups found"]))
-                self.after(0, lambda: self.group_settings_group_combo.set("No groups found"))
-
-        # Run in background thread
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_groups
+        self.load_combobox_async(self.group_settings_group_combo, fetch_groups, enable_fuzzy=True)
 
     def execute_group_settings(self):
         """Execute group settings operation."""
@@ -835,7 +773,7 @@ class GroupsWindow(BaseOperationWindow):
             who_can_post = self.group_settings_post.get().strip()
             who_can_view = self.group_settings_view.get().strip()
             who_can_join = self.group_settings_join.get().strip()
-            allow_external = self.group_settings_external.get().strip()
+            allow_external = self.group_settings_external_var.get()
 
             if not group:
                 messagebox.showerror("Validation Error", "Group is required.")
@@ -856,8 +794,8 @@ class GroupsWindow(BaseOperationWindow):
                 settings['whoCanViewGroup'] = extract_value(who_can_view)
             if who_can_join:
                 settings['whoCanJoin'] = extract_value(who_can_join)
-            if allow_external:
-                settings['allowExternalMembers'] = extract_value(allow_external)
+            # Checkbox: convert boolean to string
+            settings['allowExternalMembers'] = 'true' if allow_external else 'false'
 
             # At least one setting must be provided
             if len(settings) == 1:  # Only 'group' key
@@ -967,13 +905,9 @@ class GroupsWindow(BaseOperationWindow):
         self.group_aliases_single_frame = ttk.LabelFrame(mode_container, text="Alias Details", padding="10")
 
         # Group selection with dropdown (for add action)
-        group_frame = ttk.Frame(self.group_aliases_single_frame)
-        group_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-
-        ttk.Label(group_frame, text="Group (for Add):").pack(side=tk.LEFT, padx=(0, 5))
-        self.group_aliases_group_combo = ttk.Combobox(group_frame, width=40, state='readonly')
-        self.group_aliases_group_combo.pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(group_frame, text="Load Groups", command=self.load_groups_for_aliases).pack(side=tk.LEFT)
+        ttk.Label(self.group_aliases_single_frame, text="Group (for Add):").grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        self.group_aliases_group_combo = ttk.Combobox(self.group_aliases_single_frame, width=40)
+        self.group_aliases_group_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # Alias entry
         ttk.Label(self.group_aliases_single_frame, text="Alias:").grid(row=1, column=0, sticky=tk.W)
@@ -1037,24 +971,8 @@ class GroupsWindow(BaseOperationWindow):
 
     def load_groups_for_aliases(self):
         """Load groups into combobox for group aliases."""
-        # Set loading indicator
-        self.group_aliases_group_combo['values'] = ["Loading..."]
-        self.group_aliases_group_combo.set("Loading...")
-
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_groups
-            groups = fetch_groups()
-            if groups:
-                # Update combobox in main thread
-                self.after(0, lambda: self.group_aliases_group_combo.configure(values=sorted(groups)))
-                self.after(0, lambda: self.group_aliases_group_combo.set(""))
-            else:
-                self.after(0, lambda: self.group_aliases_group_combo.configure(values=["No groups found"]))
-                self.after(0, lambda: self.group_aliases_group_combo.set("No groups found"))
-
-        # Run in background thread
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_groups
+        self.load_combobox_async(self.group_aliases_group_combo, fetch_groups, enable_fuzzy=True)
 
     def execute_group_aliases(self):
         """Execute group aliases operation."""
@@ -1156,14 +1074,8 @@ class GroupsWindow(BaseOperationWindow):
 
         ttk.Label(user_frame, text="User:").pack(side=tk.LEFT, padx=(0, 5))
 
-        self.user_groups_combo = ttk.Combobox(user_frame, width=47, state='readonly')
+        self.user_groups_combo = ttk.Combobox(user_frame, width=47)
         self.user_groups_combo.pack(side=tk.LEFT, padx=(0, 10))
-
-        ttk.Button(
-            user_frame,
-            text="Load Users",
-            command=self.load_users_for_user_groups
-        ).pack(side=tk.LEFT, padx=(0, 10))
 
         ttk.Button(
             user_frame,
@@ -1185,21 +1097,8 @@ class GroupsWindow(BaseOperationWindow):
 
     def load_users_for_user_groups(self):
         """Load users into the combobox for user groups."""
-        self.user_groups_combo['values'] = ["Loading..."]
-        self.user_groups_combo.current(0)
-        self.update_idletasks()
-
-        # Fetch users in thread
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                self.after(0, lambda: self.user_groups_combo.configure(values=sorted(users)))
-            else:
-                self.after(0, lambda: self.user_groups_combo.configure(values=["(No users found)"]))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.user_groups_combo, fetch_users, enable_fuzzy=True)
 
     def execute_user_groups(self):
         """Execute user groups operation."""
