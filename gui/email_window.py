@@ -200,17 +200,8 @@ class EmailWindow(BaseOperationWindow):
 
         # Delegate email with dropdown
         ttk.Label(params_frame, text="Delegate Email:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        delegate_email_frame = ttk.Frame(params_frame)
-        delegate_email_frame.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
-
-        self.delegate_email_entry = ttk.Combobox(delegate_email_frame)
-        self.delegate_email_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        ttk.Button(
-            delegate_email_frame,
-            text="Load Users",
-            command=self.load_users_for_delegates
-        ).pack(side=tk.LEFT)
+        self.delegate_email_entry = ttk.Combobox(params_frame, width=40)
+        self.delegate_email_entry.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
 
         params_frame.grid_columnconfigure(1, weight=1)
 
@@ -229,24 +220,13 @@ class EmailWindow(BaseOperationWindow):
 
     def load_users_for_delegates(self):
         """Load users for the delegate email dropdown."""
-        self.delegate_email_entry['values'] = ["Loading..."]
-        self.delegate_email_entry.set("Loading...")
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.delegate_email_entry, fetch_users, enable_fuzzy=True)
 
-        def fetch_and_populate():
-            from utils.workspace_data import fetch_users
-            users = fetch_users()
-            if users:
-                sorted_users = sorted(users)
-                self.after(0, lambda: self.delegate_email_entry.configure(values=sorted_users))
-                self.after(0, lambda: self.delegate_email_entry.set(""))
-                self.after(0, lambda: self.enable_standalone_fuzzy_search(self.delegate_email_entry, sorted_users))
-            else:
-                self.after(0, lambda: self.delegate_email_entry.configure(values=[]))
-                self.after(0, lambda: self.delegate_email_entry.set(""))
-
-        import threading
-        threading.Thread(target=fetch_and_populate, daemon=True).start()
-
+    def load_users_for_forward_to(self):
+        """Load users for the forward to combobox."""
+        from utils.workspace_data import fetch_users
+        self.load_combobox_async(self.forward_to_entry, fetch_users, enable_fuzzy=True)
 
     def execute_delegates(self):
         """Execute delegate operation."""
@@ -443,7 +423,7 @@ class EmailWindow(BaseOperationWindow):
         self.forwarding_input_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
         ttk.Label(self.forwarding_input_frame, text="Forward To:").pack(side=tk.LEFT, padx=(0, 5))
-        self.forward_to_entry = ttk.Entry(self.forwarding_input_frame, width=40)
+        self.forward_to_entry = ttk.Combobox(self.forwarding_input_frame, width=40)
         self.forward_to_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         params_frame.grid_columnconfigure(1, weight=1)
@@ -543,13 +523,10 @@ class EmailWindow(BaseOperationWindow):
         self.label_delete_frame = ttk.Frame(params_frame)
         self.label_delete_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
-        # Label dropdown with Load button
-        label_row = ttk.Frame(self.label_delete_frame)
-        label_row.pack(fill=tk.X)
-        ttk.Label(label_row, text="Label:").pack(side=tk.LEFT, padx=(0, 5))
-        self.label_name_combo = ttk.Combobox(label_row, width=50, state='readonly')
-        self.label_name_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        ttk.Button(label_row, text="Load Labels", command=self.load_labels_for_user).pack(side=tk.LEFT)
+        # Label dropdown
+        ttk.Label(self.label_delete_frame, text="Label:").pack(side=tk.LEFT, padx=(0, 5))
+        self.label_name_combo = ttk.Combobox(self.label_delete_frame, width=50, state='readonly')
+        self.label_name_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         params_frame.grid_columnconfigure(1, weight=1)
 
@@ -577,6 +554,8 @@ class EmailWindow(BaseOperationWindow):
         else:
             self.label_create_frame.grid_remove()
             self.label_delete_frame.grid()
+            # Auto-load labels when switching to delete mode
+            self.after(100, self.load_labels_for_user)
 
     def load_labels_for_user(self):
         """Load labels for the user from target selection."""
@@ -725,13 +704,10 @@ class EmailWindow(BaseOperationWindow):
         self.filter_delete_frame = ttk.Frame(params_frame)
         self.filter_delete_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=5)
 
-        # Filter dropdown with Load button
-        filter_row = ttk.Frame(self.filter_delete_frame)
-        filter_row.pack(fill=tk.X)
-        ttk.Label(filter_row, text="Filter:").pack(side=tk.LEFT, padx=(0, 5))
-        self.filter_id_combo = ttk.Combobox(filter_row, width=50, state='readonly')
-        self.filter_id_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        ttk.Button(filter_row, text="Load Filters", command=self.load_filters_for_user).pack(side=tk.LEFT)
+        # Filter dropdown
+        ttk.Label(self.filter_delete_frame, text="Filter:").pack(side=tk.LEFT, padx=(0, 5))
+        self.filter_id_combo = ttk.Combobox(self.filter_delete_frame, width=50, state='readonly')
+        self.filter_id_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         params_frame.grid_columnconfigure(0, weight=1)
 
@@ -759,6 +735,8 @@ class EmailWindow(BaseOperationWindow):
         else:
             self.filter_create_frame.grid_remove()
             self.filter_delete_frame.grid()
+            # Auto-load filters when switching to delete mode
+            self.after(100, self.load_filters_for_user)
 
     def load_filters_for_user(self):
         """Load filters for the user from target selection."""
@@ -886,3 +864,6 @@ class EmailWindow(BaseOperationWindow):
 
         # Load users for delegates combobox (the delegate email field)
         self.load_users_for_delegates()
+
+        # Load users for forward to combobox
+        self.load_users_for_forward_to()
