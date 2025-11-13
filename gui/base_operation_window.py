@@ -1531,3 +1531,285 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             title: Dialog title
         """
         messagebox.showinfo(title, message)
+
+    def load_combobox_async(self, combobox, fetch_function, tab_id=None,
+                           enable_fuzzy=True, default_value="",
+                           loading_text="Loading...", sort=True):
+        """
+        Load data into combobox asynchronously with optional fuzzy search.
+
+        This method handles the common pattern of:
+        1. Showing loading state
+        2. Fetching data in background thread
+        3. Populating combobox with results
+        4. Optionally enabling fuzzy search
+
+        Args:
+            combobox: Combobox widget to populate
+            fetch_function: Function to call that returns list of items
+            tab_id: Optional tab ID for fuzzy search storage
+            enable_fuzzy: Enable fuzzy search on combobox (default: True)
+            default_value: Value to set after loading (default: "")
+            loading_text: Text to show while loading (default: "Loading...")
+            sort: Sort results alphabetically (default: True)
+
+        Example:
+            self.load_combobox_async(
+                self.user_combobox,
+                fetch_users,
+                tab_id='create_user',
+                enable_fuzzy=True
+            )
+        """
+        # Set loading state
+        combobox['values'] = [loading_text]
+        combobox.set(loading_text)
+
+        def fetch_and_populate():
+            """Background thread function to fetch and populate data."""
+            try:
+                items = fetch_function()
+
+                if items:
+                    # Sort if requested
+                    if sort:
+                        items = sorted(items)
+
+                    # Update combobox on main thread
+                    self.after(0, lambda: combobox.configure(values=items))
+                    self.after(0, lambda: combobox.set(default_value))
+
+                    # Enable fuzzy search if requested and tab_id provided
+                    if enable_fuzzy and tab_id:
+                        self.after(0, lambda: self.enable_fuzzy_search(combobox, tab_id))
+                    elif enable_fuzzy:
+                        # For standalone comboboxes without tab_id
+                        self.after(0, lambda: self._enable_standalone_fuzzy_search(combobox, items))
+                else:
+                    # No data returned
+                    self.after(0, lambda: combobox.configure(values=[]))
+                    self.after(0, lambda: combobox.set(default_value))
+
+            except Exception as e:
+                # Error occurred during fetch
+                log_error("ComboboxLoader", f"Failed to load combobox data: {str(e)}")
+                self.after(0, lambda: combobox.configure(values=[]))
+                self.after(0, lambda: combobox.set("Error loading data"))
+
+        # Start background thread
+        import threading
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def _enable_standalone_fuzzy_search(self, combobox, all_values):
+        """
+        Enable fuzzy search on a standalone combobox (without tab_id).
+
+        This is used internally by load_combobox_async for comboboxes
+        that don't have a tab_id for storing fuzzy search data.
+
+        Args:
+            combobox: Combobox widget
+            all_values: List of all possible values
+        """
+        # Store all values on the combobox itself
+        combobox._all_values = all_values
+
+        def on_keyrelease(event):
+            """Handle key release events for fuzzy filtering."""
+            if event.keysym in ('Up', 'Down', 'Return', 'Escape', 'Tab'):
+                return
+
+            typed = combobox.get().lower()
+
+            # Filter values
+            filtered = [item for item in combobox._all_values if typed in item.lower()]
+
+            # Update combobox values
+            combobox['values'] = filtered
+
+            # Show dropdown if there are matches
+            if filtered:
+                combobox.event_generate('<Down>')
+                combobox.focus_set()  # Keep focus on text entry
+
+        # Bind the event
+        combobox.bind('<KeyRelease>', on_keyrelease)
+
+    def browse_csv_file(self, entry_widget, title="Select CSV File"):
+        """
+        Open file dialog to browse for CSV file and populate entry widget.
+
+        Args:
+            entry_widget: Entry or Combobox widget to populate with file path
+            title: Dialog title (default: "Select CSV File")
+
+        Returns:
+            str: Selected file path, or None if canceled
+
+        Example:
+            self.browse_csv_file(self.csv_entry, "Select User CSV File")
+        """
+        from tkinter import filedialog
+
+        file_path = filedialog.askopenfilename(
+            title=title,
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+        )
+
+        if file_path:
+            entry_widget.delete(0, tk.END)
+            entry_widget.insert(0, file_path)
+            return file_path
+
+        return None
+
+    def read_and_validate_csv(self, file_path, required_fields, operation_name):
+        """
+        Read and validate CSV file with standard error handling.
+
+        This method handles the common pattern of:
+        1. Reading CSV file with proper encoding
+        2. Checking if file is empty
+        3. Validating required fields exist
+        4. Confirming bulk operations with user
+
+        Args:
+            file_path: Path to CSV file
+            required_fields: List of required field names (column headers)
+            operation_name: Name of operation for error messages (e.g., "create users")
+
+        Returns:
+            list: List of dictionaries (CSV rows), or None on error/cancel
+
+        Example:
+            data = self.read_and_validate_csv(
+                csv_path,
+                ['email', 'firstname', 'lastname'],
+                'create users'
+            )
+            if data:
+                # Process data
+        """
+        import csv
+
+        try:
+            # Read CSV file
+            with open(file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                data = list(reader)
+
+            # Check if empty
+            if not data:
+                self.show_error("CSV file is empty.")
+                return None
+
+            # Validate required fields
+            for field in required_fields:
+                for i, row in enumerate(data, start=1):
+                    if field not in row or not row[field].strip():
+                        self.show_error(
+                            f"Row {i}: Missing or empty required field '{field}'.\n\n"
+                            f"Please ensure all rows have values for: {', '.join(required_fields)}",
+                            "Validation Error"
+                        )
+                        return None
+
+            # Confirm bulk operation
+            if not self.confirm_bulk_operation(len(data), operation_name):
+                return None
+
+            return data
+
+        except FileNotFoundError:
+            self.show_error(f"CSV file not found: {file_path}")
+            return None
+        except PermissionError:
+            self.show_error(f"Permission denied reading CSV file: {file_path}")
+            return None
+        except Exception as e:
+            self.show_error(f"Failed to read CSV file: {str(e)}")
+            return None
+
+    def create_mode_toggle(self, parent, tab_id, single_label="Single Entry",
+                          csv_label="CSV Bulk Import", default_mode="single"):
+        """
+        Create standard single/CSV mode toggle with frames.
+
+        This method creates the common pattern of:
+        1. Radio buttons for single vs CSV mode
+        2. Two frames (single_frame and csv_frame) that toggle visibility
+        3. Automatic frame switching based on mode selection
+
+        The frames are returned for customization with operation-specific widgets.
+
+        Args:
+            parent: Parent widget
+            tab_id: Tab identifier for storing mode variable
+            single_label: Label for single mode radio button
+            csv_label: Label for CSV mode radio button
+            default_mode: Default mode ('single' or 'csv')
+
+        Returns:
+            tuple: (mode_frame, single_frame, csv_frame, mode_var)
+                - mode_frame: Frame containing radio buttons
+                - single_frame: Frame for single entry widgets
+                - csv_frame: Frame for CSV entry widgets
+                - mode_var: StringVar containing current mode
+
+        Example:
+            mode_frame, single_frame, csv_frame, mode_var = self.create_mode_toggle(
+                parent_tab,
+                'create_user',
+                single_label="Create Single User",
+                csv_label="Bulk Create from CSV"
+            )
+
+            # Then add your custom widgets to single_frame and csv_frame
+            ttk.Label(single_frame, text="Email:").pack()
+            ttk.Entry(single_frame).pack()
+        """
+        # Create mode variable and store it
+        mode_var = tk.StringVar(value=default_mode)
+        setattr(self, f"{tab_id}_mode", mode_var)
+
+        # Create mode selection frame
+        mode_frame = ttk.Frame(parent)
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Create toggle function
+        def toggle_mode():
+            if mode_var.get() == "single":
+                csv_frame.pack_forget()
+                single_frame.pack(fill=tk.X, expand=True)
+            else:
+                single_frame.pack_forget()
+                csv_frame.pack(fill=tk.X, expand=True)
+
+        # Radio buttons
+        ttk.Radiobutton(
+            mode_frame,
+            text=single_label,
+            variable=mode_var,
+            value="single",
+            command=toggle_mode
+        ).pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(
+            mode_frame,
+            text=csv_label,
+            variable=mode_var,
+            value="csv",
+            command=toggle_mode
+        ).pack(side=tk.LEFT)
+
+        # Create frames for single and CSV modes
+        single_frame = ttk.LabelFrame(parent, text=single_label, padding="10")
+        csv_frame = ttk.LabelFrame(parent, text=csv_label, padding="10")
+
+        # Show default frame
+        if default_mode == "single":
+            single_frame.pack(fill=tk.X, expand=True)
+        else:
+            csv_frame.pack(fill=tk.X, expand=True)
+
+        return mode_frame, single_frame, csv_frame, mode_var
