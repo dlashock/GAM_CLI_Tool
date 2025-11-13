@@ -26,7 +26,7 @@ class PasswordGeneratorDialog(tk.Toplevel):
         self.generated_password = None
 
         self.title("Generate Password")
-        self.geometry("450x400")
+        self.geometry("450x500")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
