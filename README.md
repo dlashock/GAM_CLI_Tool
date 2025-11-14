@@ -35,6 +35,14 @@ A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/G
 - **Manage Group Aliases** - Add or remove group email aliases
 - **Change Owners** - Transfer group ownership
 
+### Calendar Operations (Fully Implemented)
+
+- **Manage Calendar Permissions** - Share calendars with users/groups with customizable access levels
+- **Create/Delete Calendars** - Create new calendars or delete existing ones
+- **View Calendar Information** - Display calendar details, URLs, and permission lists
+- **Import/Export Calendar Data** - Import .ics files and export events to CSV
+- **Permission Levels** - Reader, Writer, and Owner access with optional notifications
+
 ### Bulk Operations Support
 
 - Process single users, groups, all users, or CSV lists
@@ -46,7 +54,6 @@ A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/G
 ### Coming Soon
 
 - Google Workspace Reports
-- Calendar Operations
 - Drive Operations
 - Security Auditing (Non-Domain ACLs)
 
