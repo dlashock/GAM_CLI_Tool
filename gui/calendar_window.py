@@ -215,8 +215,10 @@ class CalendarWindow(BaseOperationWindow):
     def toggle_permissions_operation(self):
         """Toggle visibility of permission settings based on operation."""
         if self.permissions_operation_var.get() == "add":
-            self.permissions_settings_frame.pack(fill=tk.X, pady=(0, 10))
+            # Show permission settings
+            self.permissions_settings_frame.pack(fill=tk.X, pady=(0, 10), before=self.permissions_progress_frame)
         else:
+            # Hide permission settings (so layout doesn't shift)
             self.permissions_settings_frame.pack_forget()
 
     def load_calendars_for_permissions(self):
@@ -272,18 +274,18 @@ class CalendarWindow(BaseOperationWindow):
         if operation == "add":
             role = self.permissions_role_var.get()
             send_notif = self.permissions_send_notif_var.get()
-            self.run_async_operation(
-                self.permissions_progress_frame,
+            self.run_operation(
                 calendar_ops.add_calendar_permission,
+                self.permissions_progress_frame,
                 [calendar_id],
                 target_user,
                 role,
                 send_notif
             )
         else:
-            self.run_async_operation(
-                self.permissions_progress_frame,
+            self.run_operation(
                 calendar_ops.remove_calendar_permission,
+                self.permissions_progress_frame,
                 [calendar_id],
                 target_user
             )
@@ -338,11 +340,18 @@ class CalendarWindow(BaseOperationWindow):
         # Bind owner selection to load calendars
         self.manage_calendar_owner_combo.bind('<<ComboboxSelected>>', lambda e: self.load_calendars_for_manage())
 
-        # Calendar Name (shared)
+        # Calendar Name - different widgets for create vs delete
         row += 1
         ttk.Label(details_frame, text="Calendar Name:").grid(row=row, column=0, sticky=tk.W, padx=5, pady=5)
-        self.manage_calendar_name_combo = ttk.Combobox(details_frame, width=40)
+
+        # Entry widget for create mode
+        self.manage_calendar_name_entry = ttk.Entry(details_frame, width=40)
+        self.manage_calendar_name_entry.grid(row=row, column=1, sticky=tk.EW, padx=5, pady=5)
+
+        # Combobox for delete mode (initially hidden)
+        self.manage_calendar_name_combo = ttk.Combobox(details_frame, width=40, state='readonly')
         self.manage_calendar_name_combo.grid(row=row, column=1, sticky=tk.EW, padx=5, pady=5)
+        self.manage_calendar_name_combo.grid_remove()  # Hide initially
 
         # Load button (for delete mode)
         self.manage_calendar_load_btn = ttk.Button(
@@ -351,6 +360,7 @@ class CalendarWindow(BaseOperationWindow):
             command=self.load_calendars_for_manage
         )
         self.manage_calendar_load_btn.grid(row=row, column=2, padx=5, pady=5)
+        self.manage_calendar_load_btn.grid_remove()  # Hide initially
 
         # Create-specific fields frame
         self.create_calendar_frame = ttk.Frame(details_frame)
@@ -395,15 +405,17 @@ class CalendarWindow(BaseOperationWindow):
     def toggle_manage_calendar_operation(self):
         """Toggle between create and delete modes."""
         if self.manage_calendar_operation_var.get() == "create":
-            # Create mode: hide load button, show create-specific fields, allow typing
+            # Create mode: show entry, hide combobox and load button, show create fields
+            self.manage_calendar_name_entry.grid()
+            self.manage_calendar_name_combo.grid_remove()
             self.manage_calendar_load_btn.grid_remove()
             self.create_calendar_frame.grid()
-            self.manage_calendar_name_combo.config(state='normal')
         else:
-            # Delete mode: show load button, hide create-specific fields, make combobox readonly
+            # Delete mode: show combobox and load button, hide entry, hide create fields
+            self.manage_calendar_name_entry.grid_remove()
+            self.manage_calendar_name_combo.grid()
             self.manage_calendar_load_btn.grid()
             self.create_calendar_frame.grid_remove()
-            self.manage_calendar_name_combo.config(state='readonly')
 
     def load_calendars_for_manage(self):
         """Load calendars for selected owner."""
@@ -422,18 +434,18 @@ class CalendarWindow(BaseOperationWindow):
         """Execute create or delete calendar operation."""
         operation = self.manage_calendar_operation_var.get()
         owner = self.manage_calendar_owner_combo.get().strip()
-        calendar_input = self.manage_calendar_name_combo.get().strip()
 
         # Validate common fields
         if not owner:
             messagebox.showerror("Error", "Please enter calendar owner email")
             return
-        if not calendar_input:
-            messagebox.showerror("Error", "Please enter calendar name")
-            return
 
         if operation == "create":
-            # Create mode
+            # Create mode - get from entry widget
+            calendar_input = self.manage_calendar_name_entry.get().strip()
+            if not calendar_input:
+                messagebox.showerror("Error", "Please enter calendar name")
+                return
             name = calendar_input
             description = self.create_calendar_desc_entry.get().strip()
             color_name = self.create_calendar_color_var.get()
@@ -451,9 +463,9 @@ class CalendarWindow(BaseOperationWindow):
 
             # Clear and execute
             self.clear_results(self.manage_calendar_progress_frame)
-            self.run_async_operation(
-                self.manage_calendar_progress_frame,
+            self.run_operation(
                 calendar_ops.create_calendar,
+                self.manage_calendar_progress_frame,
                 owner,
                 name,
                 description,
@@ -461,7 +473,13 @@ class CalendarWindow(BaseOperationWindow):
             )
 
         else:
-            # Delete mode - extract calendar ID
+            # Delete mode - get from combobox widget
+            calendar_input = self.manage_calendar_name_combo.get().strip()
+            if not calendar_input:
+                messagebox.showerror("Error", "Please select a calendar to delete")
+                return
+
+            # Extract calendar ID
             if '(' in calendar_input and calendar_input.endswith(')'):
                 calendar_id = calendar_input.split('(')[-1].rstrip(')')
             else:
@@ -473,9 +491,9 @@ class CalendarWindow(BaseOperationWindow):
 
             # Clear and execute
             self.clear_results(self.manage_calendar_progress_frame)
-            self.run_async_operation(
-                self.manage_calendar_progress_frame,
+            self.run_operation(
                 calendar_ops.delete_calendar,
+                self.manage_calendar_progress_frame,
                 owner,
                 calendar_id
             )
@@ -578,9 +596,9 @@ class CalendarWindow(BaseOperationWindow):
 
         # Clear and run
         self.clear_results(self.view_info_progress_frame)
-        self.run_async_operation(
-            self.view_info_progress_frame,
+        self.run_operation(
             calendar_ops.get_calendar_info,
+            self.view_info_progress_frame,
             calendar_id,
             owner
         )
@@ -601,9 +619,9 @@ class CalendarWindow(BaseOperationWindow):
 
         # Clear and run
         self.clear_results(self.view_info_progress_frame)
-        self.run_async_operation(
-            self.view_info_progress_frame,
+        self.run_operation(
             calendar_ops.get_calendar_acl,
+            self.view_info_progress_frame,
             calendar_id
         )
 
@@ -714,6 +732,9 @@ class CalendarWindow(BaseOperationWindow):
             command=self.browse_export_file
         ).grid(row=2, column=2, padx=5, pady=5)
 
+        # Initial state
+        self.toggle_import_export_operation()
+
         # Progress frame
         self.import_export_progress_frame = self.create_progress_frame(tab)
         self.import_export_progress_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
@@ -728,9 +749,6 @@ class CalendarWindow(BaseOperationWindow):
             command=self.execute_import_export_operation,
             width=20
         ).pack(side=tk.LEFT)
-
-        # Initial state
-        self.toggle_import_export_operation()
 
     def toggle_import_export_operation(self):
         """Toggle between import and export modes."""
@@ -815,9 +833,9 @@ class CalendarWindow(BaseOperationWindow):
 
             # Clear and execute
             self.clear_results(self.import_export_progress_frame)
-            self.run_async_operation(
-                self.import_export_progress_frame,
+            self.run_operation(
                 calendar_ops.import_calendar,
+                self.import_export_progress_frame,
                 owner,
                 calendar_id,
                 ics_file
@@ -850,9 +868,9 @@ class CalendarWindow(BaseOperationWindow):
 
             # Clear and execute
             self.clear_results(self.import_export_progress_frame)
-            self.run_async_operation(
-                self.import_export_progress_frame,
+            self.run_operation(
                 calendar_ops.export_calendar_events,
+                self.import_export_progress_frame,
                 calendar_id,
                 start_date,
                 end_date,
