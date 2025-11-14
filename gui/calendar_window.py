@@ -59,6 +59,7 @@ class CalendarWindow(BaseOperationWindow):
 
         # Create scrollable container
         container, scrollable = self.create_scrollable_frame(tab)
+        container.pack(fill=tk.BOTH, expand=True)
 
         # Operation type (Add or Remove)
         operation_frame = ttk.LabelFrame(scrollable, text="Operation", padding="10")
@@ -283,6 +284,7 @@ class CalendarWindow(BaseOperationWindow):
 
         # Create scrollable container
         container, scrollable = self.create_scrollable_frame(tab)
+        container.pack(fill=tk.BOTH, expand=True)
 
         # Operation type
         operation_frame = ttk.LabelFrame(scrollable, text="Operation", padding="10")
@@ -491,6 +493,7 @@ class CalendarWindow(BaseOperationWindow):
 
         # Create scrollable container
         container, scrollable = self.create_scrollable_frame(tab)
+        container.pack(fill=tk.BOTH, expand=True)
 
         # Calendar Selection Frame
         selection_frame = ttk.LabelFrame(scrollable, text="Calendar Selection", padding="10")
@@ -692,6 +695,7 @@ class CalendarWindow(BaseOperationWindow):
 
         # Create scrollable container
         container, scrollable = self.create_scrollable_frame(tab)
+        container.pack(fill=tk.BOTH, expand=True)
 
         # Import Section
         import_frame = ttk.LabelFrame(scrollable, text="Import Calendar (.ics file)", padding="10")
