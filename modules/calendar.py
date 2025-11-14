@@ -100,8 +100,7 @@ def get_calendar_info(calendar_id, user_email=None):
 
         yield {
             'status': 'success',
-            'message': 'Calendar information retrieved',
-            'data': result.stdout
+            'message': f'Calendar information retrieved:\n\n{result.stdout}'
         }
 
         return result.stdout
@@ -149,8 +148,7 @@ def get_calendar_acl(calendar_id):
 
         yield {
             'status': 'success',
-            'message': 'Calendar permissions retrieved',
-            'data': result.stdout
+            'message': f'Calendar permissions:\n\n{result.stdout}'
         }
 
         return result.stdout
@@ -330,7 +328,7 @@ def create_calendar(user_email, calendar_name, description='', color=None):
     }
 
     # Build command
-    cmd = [gam_cmd, 'user', user_email, 'create', 'calendar', calendar_name]
+    cmd = [gam_cmd, 'user', user_email, 'create', 'calendar', 'name', calendar_name]
 
     if description:
         cmd.extend(['description', description])
