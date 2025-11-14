@@ -172,30 +172,29 @@ class CalendarWindow(BaseOperationWindow):
         )
         role_combo.grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
 
-        # Role descriptions
+        # Role descriptions inline
         ttk.Label(
             self.permissions_settings_frame,
-            text="• reader: Can view events\n• writer: Can view and edit events\n• owner: Full control",
+            text="(reader: view only | writer: view & edit | owner: full control)",
             font=('Arial', 9),
-            foreground='gray',
-            justify=tk.LEFT
-        ).grid(row=row+1, column=0, columnspan=2, sticky=tk.W, padx=5, pady=(0, 10))
+            foreground='gray'
+        ).grid(row=row, column=2, sticky=tk.W, padx=(10, 5), pady=5)
 
         # Send notification checkbox
-        row += 2
+        row += 1
         self.permissions_send_notif_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             self.permissions_settings_frame,
-            text="Send notification email to user",
+            text="Send notification email",
             variable=self.permissions_send_notif_var
         ).grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=5, pady=5)
 
         ttk.Label(
             self.permissions_settings_frame,
-            text="⚠️ When checked, sends email notification to the user about calendar sharing",
-            font=('Arial', 9, 'italic'),
-            foreground='orange'
-        ).grid(row=row+1, column=0, columnspan=2, sticky=tk.W, padx=5, pady=(0, 5))
+            text="(sends email notification about calendar sharing)",
+            font=('Arial', 9),
+            foreground='gray'
+        ).grid(row=row, column=2, sticky=tk.W, padx=(10, 5), pady=5)
 
         # Progress frame
         self.permissions_progress_frame = self.create_progress_frame(tab)
@@ -594,6 +593,11 @@ class CalendarWindow(BaseOperationWindow):
         else:
             calendar_id = calendar_input
 
+        # Validate calendar_id is not empty
+        if not calendar_id:
+            messagebox.showerror("Error", "Invalid calendar selection. Please select a valid calendar or enter 'primary'")
+            return
+
         # Clear and run
         self.clear_results(self.view_info_progress_frame)
         self.run_operation(
@@ -616,6 +620,11 @@ class CalendarWindow(BaseOperationWindow):
             calendar_id = calendar_input.split('(')[-1].rstrip(')')
         else:
             calendar_id = calendar_input
+
+        # Validate calendar_id is not empty
+        if not calendar_id:
+            messagebox.showerror("Error", "Invalid calendar selection. Please select a valid calendar or enter 'primary'")
+            return
 
         # Clear and run
         self.clear_results(self.view_info_progress_frame)
@@ -753,13 +762,13 @@ class CalendarWindow(BaseOperationWindow):
     def toggle_import_export_operation(self):
         """Toggle between import and export modes."""
         if self.import_export_operation_var.get() == "import":
-            # Import mode
+            # Import mode - pack before progress frame to prevent jumping
             self.export_frame.pack_forget()
-            self.import_frame.pack(fill=tk.X, pady=(0, 10))
+            self.import_frame.pack(fill=tk.X, pady=(0, 10), before=self.import_export_progress_frame)
         else:
-            # Export mode
+            # Export mode - pack before progress frame to prevent jumping
             self.import_frame.pack_forget()
-            self.export_frame.pack(fill=tk.X, pady=(0, 10))
+            self.export_frame.pack(fill=tk.X, pady=(0, 10), before=self.import_export_progress_frame)
 
     def load_calendars_for_import_export(self):
         """Load calendars for import/export."""
