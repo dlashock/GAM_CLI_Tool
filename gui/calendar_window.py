@@ -229,7 +229,7 @@ class CalendarWindow(BaseOperationWindow):
 
         def fetch_calendars():
             calendars = calendar_ops.get_user_calendars(owner_email)
-            return [f"{cal['summary']} ({cal['id']})" for cal in calendars]
+            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
 
         self.load_combobox_async(self.permissions_calendar_combo, fetch_calendars, enable_fuzzy=True)
 
@@ -425,7 +425,7 @@ class CalendarWindow(BaseOperationWindow):
 
         def fetch_calendars():
             calendars = calendar_ops.get_user_calendars(owner_email)
-            return [f"{cal['summary']} ({cal['id']})" for cal in calendars]
+            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
 
         self.load_combobox_async(self.manage_calendar_name_combo, fetch_calendars, enable_fuzzy=True)
 
@@ -571,7 +571,7 @@ class CalendarWindow(BaseOperationWindow):
 
         def fetch_calendars():
             calendars = calendar_ops.get_user_calendars(owner_email)
-            return [f"{cal['summary']} ({cal['id']})" for cal in calendars]
+            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
 
         self.load_combobox_async(self.view_info_calendar_combo, fetch_calendars, enable_fuzzy=True)
 
@@ -741,10 +741,7 @@ class CalendarWindow(BaseOperationWindow):
             command=self.browse_export_file
         ).grid(row=2, column=2, padx=5, pady=5)
 
-        # Initial state
-        self.toggle_import_export_operation()
-
-        # Progress frame
+        # Progress frame (create before toggle to avoid attribute error)
         self.import_export_progress_frame = self.create_progress_frame(tab)
         self.import_export_progress_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
@@ -758,6 +755,9 @@ class CalendarWindow(BaseOperationWindow):
             command=self.execute_import_export_operation,
             width=20
         ).pack(side=tk.LEFT)
+
+        # Initial state (call after progress frame is created)
+        self.toggle_import_export_operation()
 
     def toggle_import_export_operation(self):
         """Toggle between import and export modes."""
@@ -779,7 +779,7 @@ class CalendarWindow(BaseOperationWindow):
 
         def fetch_calendars():
             calendars = calendar_ops.get_user_calendars(owner_email)
-            return [f"{cal['summary']} ({cal['id']})" for cal in calendars]
+            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
 
         self.load_combobox_async(self.import_export_calendar_combo, fetch_calendars, enable_fuzzy=True)
 

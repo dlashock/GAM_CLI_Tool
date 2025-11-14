@@ -328,7 +328,7 @@ def create_calendar(user_email, calendar_name, description='', color=None):
     }
 
     # Build command
-    cmd = [gam_cmd, 'user', user_email, 'create', 'calendar', 'name', calendar_name]
+    cmd = [gam_cmd, 'user', user_email, 'create', 'calendar', calendar_name]
 
     if description:
         cmd.extend(['description', description])
