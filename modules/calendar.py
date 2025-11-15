@@ -444,6 +444,7 @@ def import_calendar_events(calendar_id, csv_file_path, timezone):
         dict: Result with success/failure counts
     """
     from datetime import datetime
+    from zoneinfo import ZoneInfo
 
     gam_cmd = get_gam_command()
 
@@ -506,6 +507,8 @@ def import_calendar_events(calendar_id, csv_file_path, timezone):
                 location = event.get('Location', '').strip()
 
                 # Convert to ISO format for GAM
+                tz = ZoneInfo(timezone)
+
                 if is_all_day:
                     # All-day event
                     start_dt = datetime.strptime(start_date, '%m/%d/%Y')
@@ -513,10 +516,11 @@ def import_calendar_events(calendar_id, csv_file_path, timezone):
                     end_dt = datetime.strptime(end_date, '%m/%d/%Y') if end_date else start_dt
                     end_iso = end_dt.strftime('%Y-%m-%d')
                 else:
-                    # Timed event
+                    # Timed event - make timezone-aware and include offset
                     start_datetime = f"{start_date} {start_time}"
                     start_dt = datetime.strptime(start_datetime, '%m/%d/%Y %I:%M %p')
-                    start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+                    start_dt_tz = start_dt.replace(tzinfo=tz)
+                    start_iso = start_dt_tz.isoformat()
 
                     if end_date and end_time:
                         end_datetime = f"{end_date} {end_time}"
@@ -524,11 +528,11 @@ def import_calendar_events(calendar_id, csv_file_path, timezone):
                     else:
                         # Default to 1 hour duration
                         end_dt = start_dt
-                    end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
+                    end_dt_tz = end_dt.replace(tzinfo=tz)
+                    end_iso = end_dt_tz.isoformat()
 
                 # Build GAM command
                 cmd = [gam_cmd, 'calendar', calendar_id, 'add', 'event',
-                       'timezone', timezone,
                        'start', start_iso, 'end', end_iso,
                        'summary', subject]
 
