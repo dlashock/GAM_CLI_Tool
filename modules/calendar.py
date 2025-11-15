@@ -427,7 +427,7 @@ def delete_calendar(user_email, calendar_id):
         return {'success': False, 'error': error_msg}
 
 
-def import_calendar_events(calendar_id, csv_file_path):
+def import_calendar_events(calendar_id, csv_file_path, timezone):
     """
     Import calendar events from CSV file in Google Calendar format.
     Creates each event individually using GAM commands.
@@ -435,6 +435,7 @@ def import_calendar_events(calendar_id, csv_file_path):
     Args:
         calendar_id (str): Target calendar ID
         csv_file_path (str): Path to CSV file in Google Calendar format
+        timezone (str): Timezone for events (e.g., 'America/New_York')
 
     Yields:
         dict: Progress updates
@@ -528,6 +529,7 @@ def import_calendar_events(calendar_id, csv_file_path):
                 # Build GAM command
                 cmd = [gam_cmd, 'calendar', calendar_id, 'add', 'event',
                        'start', start_iso, 'end', end_iso,
+                       'timezone', timezone,
                        'summary', subject]
 
                 if is_all_day:
