@@ -528,8 +528,8 @@ def import_calendar_events(calendar_id, csv_file_path, timezone):
 
                 # Build GAM command
                 cmd = [gam_cmd, 'calendar', calendar_id, 'add', 'event',
-                       'start', start_iso, 'end', end_iso,
                        'timezone', timezone,
+                       'start', start_iso, 'end', end_iso,
                        'summary', subject]
 
                 if is_all_day:
