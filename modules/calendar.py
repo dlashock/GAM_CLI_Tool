@@ -50,8 +50,15 @@ def get_user_calendars(user_email):
         calendars = []
         if result.stdout:
             log_info("Get User Calendars", f"Parsing calendar data for {user_email}")
+            # Debug: show first few lines of CSV output
+            print(f"DEBUG: CSV output (first 500 chars): {result.stdout[:500]}")
             reader = csv.DictReader(io.StringIO(result.stdout))
-            for row in reader:
+            for i, row in enumerate(reader):
+                # Debug: print first row to see what fields we have
+                if i == 0:
+                    print(f"DEBUG: CSV headers: {list(row.keys())}")
+                    print(f"DEBUG: First calendar row: {dict(row)}")
+
                 cal = {
                     'id': row.get('id', ''),
                     'summary': row.get('summary', ''),
@@ -61,6 +68,7 @@ def get_user_calendars(user_email):
                 log_info("Get User Calendars", f"Found calendar: {cal['summary']} ({cal['id']})")
 
         log_info("Get User Calendars", f"Loaded {len(calendars)} calendars for {user_email}")
+        print(f"DEBUG: Returning {len(calendars)} calendars")
         return calendars
 
     except Exception as e:
