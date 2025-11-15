@@ -37,27 +37,38 @@ def get_user_calendars(user_email):
     cmd = [gam_cmd, 'user', user_email, 'print', 'calendars']
 
     try:
+        log_info("Get User Calendars", f"Fetching calendars for {user_email}")
         result = execute_gam_command(cmd, timeout=60, operation_name="Get User Calendars")
 
         if result.returncode != 0:
-            log_error("Get User Calendars", f"Failed for {user_email}: {result.stderr}")
+            error_msg = f"Failed for {user_email}: {result.stderr}"
+            log_error("Get User Calendars", error_msg)
+            print(f"ERROR loading calendars: {error_msg}")  # Debug output
             return []
 
         # Parse CSV output
         calendars = []
         if result.stdout:
+            log_info("Get User Calendars", f"Parsing calendar data for {user_email}")
             reader = csv.DictReader(io.StringIO(result.stdout))
             for row in reader:
-                calendars.append({
+                cal = {
                     'id': row.get('id', ''),
                     'summary': row.get('summary', ''),
                     'accessRole': row.get('accessRole', '')
-                })
+                }
+                calendars.append(cal)
+                log_info("Get User Calendars", f"Found calendar: {cal['summary']} ({cal['id']})")
 
+        log_info("Get User Calendars", f"Loaded {len(calendars)} calendars for {user_email}")
         return calendars
 
     except Exception as e:
-        log_error("Get User Calendars", f"Exception for {user_email}: {str(e)}")
+        error_msg = f"Exception for {user_email}: {str(e)}"
+        log_error("Get User Calendars", error_msg)
+        print(f"EXCEPTION loading calendars: {error_msg}")  # Debug output
+        import traceback
+        traceback.print_exc()
         return []
 
 
@@ -327,14 +338,15 @@ def create_calendar(user_email, calendar_name, description='', color=None):
         'message': f'Creating calendar "{calendar_name}" for {user_email}...'
     }
 
-    # Build command
-    cmd = [gam_cmd, 'user', user_email, 'create', 'calendar', calendar_name]
+    # Build command - GAM requires 'summary' parameter for calendar name
+    cmd = [gam_cmd, 'user', user_email, 'create', 'calendar', 'summary', calendar_name]
 
     if description:
         cmd.extend(['description', description])
 
     if color:
-        cmd.extend(['color', str(color)])
+        # Note: GAM uses colorid for calendar creation
+        cmd.extend(['colorid', str(color)])
 
     try:
         result = execute_gam_command(cmd, timeout=30, operation_name="Create Calendar")
