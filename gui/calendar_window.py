@@ -228,12 +228,8 @@ class CalendarWindow(BaseOperationWindow):
             return
 
         def fetch_calendars():
-            print(f"DEBUG: Fetching calendars for {owner_email}")
             calendars = calendar_ops.get_user_calendars(owner_email)
-            print(f"DEBUG: Got {len(calendars)} calendars")
-            formatted = [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
-            print(f"DEBUG: Formatted to {len(formatted)} items: {formatted}")
-            return formatted
+            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
 
         self.load_combobox_async(self.permissions_calendar_combo, fetch_calendars, enable_fuzzy=True)
 
@@ -416,12 +412,8 @@ class CalendarWindow(BaseOperationWindow):
             return
 
         def fetch_calendars():
-            print(f"DEBUG: [Manage] Fetching calendars for {owner_email}")
             calendars = calendar_ops.get_user_calendars(owner_email)
-            print(f"DEBUG: [Manage] Got {len(calendars)} calendars")
-            formatted = [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
-            print(f"DEBUG: [Manage] Formatted to {len(formatted)} items")
-            return formatted
+            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
 
         self.load_combobox_async(self.manage_calendar_name_combo, fetch_calendars, enable_fuzzy=True)
 
