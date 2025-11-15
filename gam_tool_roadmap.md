@@ -3,7 +3,7 @@
 ## Current Project Status
 
 **Version:** 0.9.0 (Pre-Release)
-**Last Updated:** 2025-11-13
+**Last Updated:** 2025-11-15
 
 ### ✅ Implemented Features
 
@@ -41,6 +41,13 @@
 - ✅ Manage Group Aliases
 - ✅ Change Group Owners
 
+#### Calendar Operations (4 Operations)
+- ✅ Manage Calendar Permissions (add/remove sharing with Reader, Writer, Owner roles)
+- ✅ Create/Delete Calendars
+- ✅ View Calendar Information and Permissions
+- ✅ Export Calendar Events (CSV in Google Calendar import format)
+- ✅ Import Calendar Events (CSV with timezone support)
+
 #### UI/UX Features
 - ✅ Multi-tab interface for each module
 - ✅ Single user, group, all users, CSV file, and list selection modes
@@ -49,9 +56,10 @@
 - ✅ Comprehensive error reporting
 - ✅ Bulk operation confirmations
 - ✅ Password generator utility
+- ✅ Timezone-aware datetime handling for calendar imports
 
-**Total Lines of Code:** ~10,500+
-**Implementation Status:** Core features complete, ~60% of planned functionality
+**Total Lines of Code:** ~11,500+
+**Implementation Status:** Core features complete, ~70% of planned functionality
 
 ---
 
@@ -156,56 +164,16 @@ abc123,partner@external.com,reader
 
 ---
 
-### Phase 3: Calendar Operations (MEDIUM PRIORITY)
-**Estimated Time:** 6-8 hours
-**Status:** Placeholder exists, needs full implementation
-
-#### Planned Features
-
-**Calendar Management:**
-- Create/delete calendars
-- List user calendars
-- Share/unshare calendars
-- Get calendar permissions
-
-**Event Management:**
-- Create events (single and recurring)
-- Delete events by query
-- List events in date range
-- Bulk event creation from CSV
-
-**Resource Calendars:**
-- Create resource calendars (rooms, equipment)
-- List all resources
-- Manage resource access
-
-#### GAM Commands Required
-```bash
-gam user EMAIL create calendar "NAME" description "DESC"
-gam calendar CALENDAR_ID add reader user EMAIL
-gam calendar CALENDAR_ID create event "TITLE" start START end END
-gam calendar CALENDAR_ID delete events query "QUERY"
-```
-
-#### CSV Formats
-```csv
-# Create events
-calendar,title,start,end,description,recurring
-cal123,Team Meeting,2025-01-15T10:00:00,2025-01-15T11:00:00,Weekly sync,WEEKLY
-```
-
----
-
-### Phase 4: Advanced Features (MEDIUM PRIORITY)
+### Phase 3: Advanced Features (MEDIUM PRIORITY)
 **Estimated Time:** 8-10 hours
 
-#### 4.1 Dry-Run Mode
+#### 3.1 Dry-Run Mode
 - Preview operations without executing
 - Show GAM commands that would run
 - Display affected users/groups/files
 - "Execute For Real" button after preview
 
-#### 4.2 Operation History & Undo
+#### 3.2 Operation History & Undo
 - Store last N operations with details
 - Provide undo for reversible operations
 - Warn when operation cannot be undone
@@ -220,7 +188,7 @@ cal123,Team Meeting,2025-01-15T10:00:00,2025-01-15T11:00:00,Weekly sync,WEEKLY
 - Delete Messages (permanent)
 - Delete User (data loss)
 
-#### 4.3 Operation Templates
+#### 3.3 Operation Templates
 - Save common workflows as templates
 - Template variables ({{email}}, {{firstName}}, etc.)
 - Load and execute templates
@@ -231,7 +199,7 @@ cal123,Team Meeting,2025-01-15T10:00:00,2025-01-15T11:00:00,Weekly sync,WEEKLY
 - Employee Offboarding
 - Department Transfer
 
-#### 4.4 Enhanced UX
+#### 3.4 Enhanced UX
 - Better progress indicators with ETA
 - Export all results to CSV
 - Dark mode toggle
@@ -240,7 +208,7 @@ cal123,Team Meeting,2025-01-15T10:00:00,2025-01-15T11:00:00,Weekly sync,WEEKLY
 
 ---
 
-### Phase 5: Team Drives Module (LOW PRIORITY)
+### Phase 4: Team Drives Module (LOW PRIORITY)
 **Estimated Time:** 4-6 hours
 
 #### Planned Features
@@ -399,17 +367,17 @@ See REFACTORING_GUIDE.md for information on the base utility methods available f
 - ✅ Email operations (6)
 - ✅ User management (7+)
 - ✅ Group management (6+)
+- ✅ Calendar operations (4)
 - ⏳ Reports (0)
 - ⏳ Drive operations (0)
-- ⏳ Calendar operations (0)
 
 **Quality:**
-- Responsive GUI (<100ms)
-- Comprehensive error handling
-- Complete documentation
-- Cross-platform builds
+- ✅ Responsive GUI (<100ms)
+- ✅ Comprehensive error handling
+- ✅ Complete documentation
+- ⏳ Cross-platform builds
 
 ---
 
-**Last Updated:** 2025-11-13
+**Last Updated:** 2025-11-15
 **Project Status:** Active development, pre-release
