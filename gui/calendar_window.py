@@ -689,6 +689,39 @@ class CalendarWindow(BaseOperationWindow):
             command=self.browse_import_file
         ).grid(row=0, column=2, padx=5, pady=5)
 
+        # Timezone selection
+        ttk.Label(self.import_frame, text="Timezone:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.import_timezone_combo = ttk.Combobox(self.import_frame, width=40, state='readonly')
+        self.import_timezone_combo.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Common timezones
+        timezones = [
+            'America/New_York',
+            'America/Chicago',
+            'America/Denver',
+            'America/Los_Angeles',
+            'America/Phoenix',
+            'America/Anchorage',
+            'Pacific/Honolulu',
+            'Europe/London',
+            'Europe/Paris',
+            'Europe/Berlin',
+            'Asia/Tokyo',
+            'Asia/Shanghai',
+            'Asia/Dubai',
+            'Australia/Sydney',
+            'UTC'
+        ]
+        self.import_timezone_combo['values'] = timezones
+        self.import_timezone_combo.set('America/New_York')  # Default
+
+        ttk.Label(
+            self.import_frame,
+            text="(Applied to all imported events)",
+            font=('Arial', 9),
+            foreground='gray'
+        ).grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+
         # Export settings frame
         self.export_frame = ttk.LabelFrame(tab, text="Export Settings", padding="10")
         self.export_frame.pack(fill=tk.X, pady=(0, 10))
@@ -803,6 +836,7 @@ class CalendarWindow(BaseOperationWindow):
         """Execute calendar import operation."""
         calendar_input = self.import_export_calendar_combo.get().strip()
         csv_file = self.import_file_entry.get().strip()
+        timezone = self.import_timezone_combo.get().strip()
 
         # Validate fields
         if not calendar_input:
@@ -810,6 +844,9 @@ class CalendarWindow(BaseOperationWindow):
             return
         if not csv_file:
             messagebox.showerror("Error", "Please select CSV file to import")
+            return
+        if not timezone:
+            messagebox.showerror("Error", "Please select timezone")
             return
 
         # Extract calendar ID
@@ -838,7 +875,8 @@ class CalendarWindow(BaseOperationWindow):
             calendar_ops.import_calendar_events,
             self.import_export_progress_frame,
             calendar_id,
-            csv_file
+            csv_file,
+            timezone
         )
 
     def execute_export_operation(self):
