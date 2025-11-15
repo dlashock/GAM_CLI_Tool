@@ -427,70 +427,185 @@ def delete_calendar(user_email, calendar_id):
         return {'success': False, 'error': error_msg}
 
 
-def import_calendar(user_email, calendar_id, ics_file_path):
+def import_calendar_events(calendar_id, csv_file_path):
     """
-    Import calendar events from .ics file.
+    Import calendar events from CSV file in Google Calendar format.
+    Creates each event individually using GAM commands.
 
     Args:
-        user_email (str): User who owns the calendar
         calendar_id (str): Target calendar ID
-        ics_file_path (str): Path to .ics file
+        csv_file_path (str): Path to CSV file in Google Calendar format
 
     Yields:
         dict: Progress updates
 
     Returns:
-        dict: Result
+        dict: Result with success/failure counts
     """
+    from datetime import datetime
+
     gam_cmd = get_gam_command()
 
     # Validate file exists
-    if not os.path.exists(ics_file_path):
+    if not os.path.exists(csv_file_path):
         yield {
             'status': 'error',
-            'message': f'✗ File not found: {ics_file_path}'
+            'message': f'✗ File not found: {csv_file_path}'
         }
         return {'success': False, 'error': 'File not found'}
 
     yield {
         'status': 'progress',
-        'message': f'Importing events from {os.path.basename(ics_file_path)} to calendar {calendar_id}...'
+        'message': f'Reading events from {os.path.basename(csv_file_path)}...'
     }
 
-    cmd = [gam_cmd, 'user', user_email, 'import', 'calendar', calendar_id, 'file', ics_file_path]
-
     try:
-        result = execute_gam_command(cmd, timeout=120, operation_name="Import Calendar")
+        # Read and parse CSV file
+        events = []
+        with open(csv_file_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                events.append(row)
 
-        if result.returncode == 0:
-            yield {
-                'status': 'success',
-                'message': f'✓ Imported events to calendar {calendar_id}',
-                'data': result.stdout
-            }
-            return {'success': True, 'output': result.stdout}
-        else:
-            error_msg = result.stderr.strip() if result.stderr else 'Unknown error'
+        if not events:
             yield {
                 'status': 'error',
-                'message': f'✗ Failed to import calendar: {error_msg}'
+                'message': '✗ No events found in CSV file'
             }
-            log_error("Import Calendar", f"User {user_email}, Calendar {calendar_id}: {error_msg}")
-            return {'success': False, 'error': error_msg}
+            return {'success': False, 'error': 'No events in file'}
+
+        yield {
+            'status': 'progress',
+            'message': f'Found {len(events)} events. Starting import...'
+        }
+
+        # Import each event
+        success_count = 0
+        failure_count = 0
+
+        for idx, event in enumerate(events, 1):
+            try:
+                # Extract event data
+                subject = event.get('Subject', '').strip()
+                if not subject:
+                    yield {
+                        'status': 'progress',
+                        'message': f'⊘ Event {idx}/{len(events)}: Skipped (no subject)'
+                    }
+                    failure_count += 1
+                    continue
+
+                # Parse dates and times
+                start_date = event.get('Start Date', '').strip()
+                start_time = event.get('Start Time', '').strip()
+                end_date = event.get('End Date', '').strip()
+                end_time = event.get('End Time', '').strip()
+                is_all_day = event.get('All Day Event', '').strip().lower() == 'true'
+                description = event.get('Description', '').strip()
+                location = event.get('Location', '').strip()
+
+                # Convert to ISO format for GAM
+                if is_all_day:
+                    # All-day event
+                    start_dt = datetime.strptime(start_date, '%m/%d/%Y')
+                    start_iso = start_dt.strftime('%Y-%m-%d')
+                    end_dt = datetime.strptime(end_date, '%m/%d/%Y') if end_date else start_dt
+                    end_iso = end_dt.strftime('%Y-%m-%d')
+                else:
+                    # Timed event
+                    start_datetime = f"{start_date} {start_time}"
+                    start_dt = datetime.strptime(start_datetime, '%m/%d/%Y %I:%M %p')
+                    start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+
+                    if end_date and end_time:
+                        end_datetime = f"{end_date} {end_time}"
+                        end_dt = datetime.strptime(end_datetime, '%m/%d/%Y %I:%M %p')
+                    else:
+                        # Default to 1 hour duration
+                        end_dt = start_dt
+                    end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
+
+                # Build GAM command
+                cmd = [gam_cmd, 'calendar', calendar_id, 'add', 'event',
+                       'start', start_iso, 'end', end_iso,
+                       'summary', subject]
+
+                if is_all_day:
+                    cmd.append('allday')
+
+                if description:
+                    cmd.extend(['description', description])
+
+                if location:
+                    cmd.extend(['location', location])
+
+                # Execute command
+                yield {
+                    'status': 'progress',
+                    'message': f'⏳ Importing event {idx}/{len(events)}: {subject[:50]}...'
+                }
+
+                result = execute_gam_command(cmd, timeout=30, operation_name="Import Event")
+
+                if result.returncode == 0:
+                    success_count += 1
+                    yield {
+                        'status': 'progress',
+                        'message': f'✓ Event {idx}/{len(events)}: {subject[:50]}'
+                    }
+                else:
+                    failure_count += 1
+                    error_msg = result.stderr.strip() if result.stderr else 'Unknown error'
+                    yield {
+                        'status': 'progress',
+                        'message': f'✗ Event {idx}/{len(events)}: {subject[:50]} - {error_msg[:50]}'
+                    }
+                    log_error("Import Event", f"Calendar {calendar_id}, Event '{subject}': {error_msg}")
+
+            except Exception as e:
+                failure_count += 1
+                yield {
+                    'status': 'progress',
+                    'message': f'✗ Event {idx}/{len(events)}: Error parsing - {str(e)[:50]}'
+                }
+                log_error("Import Event", f"Calendar {calendar_id}: {str(e)}")
+                continue
+
+        # Final summary
+        if success_count > 0:
+            yield {
+                'status': 'success',
+                'message': f'✓ Import complete: {success_count} succeeded, {failure_count} failed'
+            }
+            return {
+                'success': True,
+                'imported': success_count,
+                'failed': failure_count
+            }
+        else:
+            yield {
+                'status': 'error',
+                'message': f'✗ Import failed: 0 succeeded, {failure_count} failed'
+            }
+            return {
+                'success': False,
+                'imported': 0,
+                'failed': failure_count
+            }
 
     except Exception as e:
         error_msg = f'Exception: {str(e)}'
         yield {
             'status': 'error',
-            'message': f'✗ Failed to import calendar: {error_msg}'
+            'message': f'✗ Failed to import events: {error_msg}'
         }
-        log_error("Import Calendar", f"User {user_email}: {error_msg}")
+        log_error("Import Calendar Events", f"Calendar {calendar_id}: {error_msg}")
         return {'success': False, 'error': error_msg}
 
 
 def export_calendar_events(calendar_id, start_date, end_date, output_file):
     """
-    Export calendar events to CSV file.
+    Export calendar events to CSV file in Google Calendar import format.
 
     Args:
         calendar_id (str): Calendar ID
@@ -519,13 +634,21 @@ def export_calendar_events(calendar_id, start_date, end_date, output_file):
         result = execute_gam_command(cmd, timeout=120, operation_name="Export Calendar Events")
 
         if result.returncode == 0:
-            # Write CSV output to file
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write(result.stdout)
+            yield {
+                'status': 'progress',
+                'message': 'Converting to Google Calendar import format...'
+            }
+
+            # Convert GAM CSV to Google Calendar format
+            converted_csv = _convert_to_google_calendar_format(result.stdout)
+
+            # Write converted CSV to file
+            with open(output_file, 'w', encoding='utf-8', newline='') as f:
+                f.write(converted_csv)
 
             yield {
                 'status': 'success',
-                'message': f'✓ Exported events to {output_file}'
+                'message': f'✓ Exported events to {output_file} (Google Calendar import format)'
             }
             return {'success': True, 'file': output_file}
         else:
@@ -545,6 +668,106 @@ def export_calendar_events(calendar_id, start_date, end_date, output_file):
         }
         log_error("Export Calendar Events", f"Calendar {calendar_id}: {error_msg}")
         return {'success': False, 'error': error_msg}
+
+
+def _convert_to_google_calendar_format(gam_csv_output):
+    """
+    Convert GAM's CSV output to Google Calendar import format.
+
+    Google Calendar expects these columns:
+    - Subject (required)
+    - Start Date (required) - MM/DD/YYYY format
+    - Start Time (optional)
+    - End Date (optional) - MM/DD/YYYY format
+    - End Time (optional)
+    - All Day Event (optional) - True/False
+    - Description (optional)
+    - Location (optional)
+
+    Args:
+        gam_csv_output (str): CSV output from GAM
+
+    Returns:
+        str: Converted CSV in Google Calendar format
+    """
+    from datetime import datetime
+
+    # Parse GAM CSV
+    reader = csv.DictReader(io.StringIO(gam_csv_output))
+
+    # Prepare output
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write Google Calendar headers
+    writer.writerow(['Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
+                     'All Day Event', 'Description', 'Location'])
+
+    # Convert each event
+    for row in reader:
+        try:
+            # Extract fields from GAM output
+            subject = row.get('summary', '')
+            description = row.get('description', '')
+            location = row.get('location', '')
+
+            # Parse start date/time
+            start_datetime_str = row.get('start.dateTime', '')
+            start_date_str = row.get('start.date', '')
+
+            # Parse end date/time
+            end_datetime_str = row.get('end.dateTime', '')
+            end_date_str = row.get('end.date', '')
+
+            # Determine if all-day event
+            is_all_day = bool(start_date_str and not start_datetime_str)
+
+            # Format start date/time
+            if start_datetime_str:
+                # Parse datetime (format: 2024-01-15T10:00:00-05:00)
+                start_dt = datetime.fromisoformat(start_datetime_str.replace('Z', '+00:00'))
+                start_date = start_dt.strftime('%m/%d/%Y')
+                start_time = start_dt.strftime('%I:%M %p').lstrip('0')  # Remove leading zero
+            elif start_date_str:
+                # All-day event with just date
+                start_dt = datetime.strptime(start_date_str, '%Y-%m-%d')
+                start_date = start_dt.strftime('%m/%d/%Y')
+                start_time = ''
+            else:
+                # No start date found, skip this event
+                continue
+
+            # Format end date/time
+            if end_datetime_str:
+                end_dt = datetime.fromisoformat(end_datetime_str.replace('Z', '+00:00'))
+                end_date = end_dt.strftime('%m/%d/%Y')
+                end_time = end_dt.strftime('%I:%M %p').lstrip('0')
+            elif end_date_str:
+                end_dt = datetime.strptime(end_date_str, '%Y-%m-%d')
+                end_date = end_dt.strftime('%m/%d/%Y')
+                end_time = ''
+            else:
+                end_date = start_date
+                end_time = start_time
+
+            # Write row in Google Calendar format
+            writer.writerow([
+                subject,
+                start_date,
+                start_time,
+                end_date,
+                end_time,
+                'True' if is_all_day else 'False',
+                description,
+                location
+            ])
+
+        except Exception as e:
+            # Log error but continue with other events
+            log_error("CSV Conversion", f"Failed to convert event: {str(e)}")
+            continue
+
+    return output.getvalue()
 
 
 def update_calendar_settings(user_email, calendar_id, **settings):

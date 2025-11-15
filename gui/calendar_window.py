@@ -616,17 +616,40 @@ class CalendarWindow(BaseOperationWindow):
     # ==================== TAB 4: IMPORT/EXPORT ====================
 
     def create_import_export_tab(self):
-        """Create tab for exporting calendar data."""
+        """Create tab for importing and exporting calendar data."""
         tab = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(tab, text="Export Calendar")
+        self.notebook.add(tab, text="Import/Export Calendar")
 
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Export calendar events to CSV format.",
+            text="Import events from CSV file or export events to CSV format (compatible with Google Calendar import).",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
+
+        # Operation toggle
+        operation_frame = ttk.Frame(tab)
+        operation_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(operation_frame, text="Operation:").pack(side=tk.LEFT, padx=(0, 10))
+
+        self.import_export_operation_var = tk.StringVar(value="export")
+        ttk.Radiobutton(
+            operation_frame,
+            text="Import",
+            variable=self.import_export_operation_var,
+            value="import",
+            command=self.toggle_import_export_mode
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Radiobutton(
+            operation_frame,
+            text="Export",
+            variable=self.import_export_operation_var,
+            value="export",
+            command=self.toggle_import_export_mode
+        ).pack(side=tk.LEFT, padx=5)
 
         # Shared Calendar Selection Frame
         calendar_frame = ttk.LabelFrame(tab, text="Calendar Selection", padding="10")
@@ -650,6 +673,21 @@ class CalendarWindow(BaseOperationWindow):
             text="Load Calendars",
             command=self.load_calendars_for_import_export
         ).grid(row=row, column=2, padx=5, pady=5)
+
+        # Import settings frame
+        self.import_frame = ttk.LabelFrame(tab, text="Import Settings", padding="10")
+        self.import_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(self.import_frame, text="CSV File:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.import_file_entry = ttk.Entry(self.import_frame, width=40)
+        self.import_file_entry.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=5)
+        self.import_frame.columnconfigure(1, weight=1)
+
+        ttk.Button(
+            self.import_frame,
+            text="Browse...",
+            command=self.browse_import_file
+        ).grid(row=0, column=2, padx=5, pady=5)
 
         # Export settings frame
         self.export_frame = ttk.LabelFrame(tab, text="Export Settings", padding="10")
@@ -698,9 +736,12 @@ class CalendarWindow(BaseOperationWindow):
         ttk.Button(
             execute_frame,
             text="Execute",
-            command=self.execute_export_operation,
+            command=self.execute_import_export_operation,
             width=20
         ).pack(side=tk.LEFT)
+
+        # Initialize to export mode
+        self.toggle_import_export_mode()
 
     def load_calendars_for_import_export(self):
         """Load calendars for export."""
@@ -715,6 +756,17 @@ class CalendarWindow(BaseOperationWindow):
 
         self.load_combobox_async(self.import_export_calendar_combo, fetch_calendars, enable_fuzzy=True)
 
+    def browse_import_file(self):
+        """Browse for import file."""
+        file_path = filedialog.askopenfilename(
+            title="Select CSV File to Import",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
+        if file_path:
+            self.import_file_entry.delete(0, tk.END)
+            self.import_file_entry.insert(0, file_path)
+
     def browse_export_file(self):
         """Browse for export file location."""
         file_path = filedialog.asksaveasfilename(
@@ -725,6 +777,69 @@ class CalendarWindow(BaseOperationWindow):
         if file_path:
             self.export_file_entry.delete(0, tk.END)
             self.export_file_entry.insert(0, file_path)
+
+    def toggle_import_export_mode(self):
+        """Toggle between import and export modes."""
+        mode = self.import_export_operation_var.get()
+
+        if mode == "import":
+            # Show import frame, hide export frame
+            self.import_frame.pack(fill=tk.X, pady=(0, 10), before=self.import_export_progress_frame)
+            self.export_frame.pack_forget()
+        else:
+            # Show export frame, hide import frame
+            self.export_frame.pack(fill=tk.X, pady=(0, 10), before=self.import_export_progress_frame)
+            self.import_frame.pack_forget()
+
+    def execute_import_export_operation(self):
+        """Execute import or export based on selected mode."""
+        mode = self.import_export_operation_var.get()
+        if mode == "import":
+            self.execute_import_operation()
+        else:
+            self.execute_export_operation()
+
+    def execute_import_operation(self):
+        """Execute calendar import operation."""
+        calendar_input = self.import_export_calendar_combo.get().strip()
+        csv_file = self.import_file_entry.get().strip()
+
+        # Validate fields
+        if not calendar_input:
+            messagebox.showerror("Error", "Please select target calendar")
+            return
+        if not csv_file:
+            messagebox.showerror("Error", "Please select CSV file to import")
+            return
+
+        # Extract calendar ID
+        if '(' in calendar_input and calendar_input.endswith(')'):
+            calendar_id = calendar_input.split('(')[-1].rstrip(')')
+        else:
+            calendar_id = calendar_input
+
+        # Validate calendar_id is not empty
+        if not calendar_id:
+            messagebox.showerror("Error", "Invalid calendar selection. Please select a valid calendar")
+            return
+
+        # Validate file exists
+        if not os.path.exists(csv_file):
+            messagebox.showerror("Error", "CSV file not found")
+            return
+
+        # Confirm
+        if not messagebox.askyesno("Confirm", f"Import events from {os.path.basename(csv_file)} to calendar?"):
+            return
+
+        # Clear and execute
+        self.clear_results(self.import_export_progress_frame)
+        self.run_operation(
+            calendar_ops.import_calendar_events,
+            self.import_export_progress_frame,
+            calendar_id,
+            csv_file
+        )
 
     def execute_export_operation(self):
         """Execute calendar export operation."""
