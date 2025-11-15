@@ -623,7 +623,7 @@ class CalendarWindow(BaseOperationWindow):
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Export calendar events to ICS or CSV format.",
+            text="Export calendar events to CSV format.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
@@ -655,57 +655,37 @@ class CalendarWindow(BaseOperationWindow):
         self.export_frame = ttk.LabelFrame(tab, text="Export Settings", padding="10")
         self.export_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # Format selection
-        ttk.Label(self.export_frame, text="Format:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.export_format_var = tk.StringVar(value="csv")
-        format_frame = ttk.Frame(self.export_frame)
-        format_frame.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
-
-        ttk.Radiobutton(
-            format_frame,
-            text="CSV",
-            variable=self.export_format_var,
-            value="csv"
-        ).pack(side=tk.LEFT, padx=(0, 20))
-
-        ttk.Radiobutton(
-            format_frame,
-            text="ICS (iCalendar)",
-            variable=self.export_format_var,
-            value="ics"
-        ).pack(side=tk.LEFT)
-
         # Date range
-        ttk.Label(self.export_frame, text="Start Date:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(self.export_frame, text="Start Date:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
         self.export_start_date_entry = ttk.Entry(self.export_frame, width=20)
-        self.export_start_date_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        self.export_start_date_entry.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
         default_start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
         self.export_start_date_entry.insert(0, default_start)
+
+        ttk.Label(self.export_frame, text="(YYYY-MM-DD)", font=('Arial', 9), foreground='gray').grid(
+            row=0, column=2, sticky=tk.W, padx=5, pady=5
+        )
+
+        ttk.Label(self.export_frame, text="End Date:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.export_end_date_entry = ttk.Entry(self.export_frame, width=20)
+        self.export_end_date_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        default_end = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        self.export_end_date_entry.insert(0, default_end)
 
         ttk.Label(self.export_frame, text="(YYYY-MM-DD)", font=('Arial', 9), foreground='gray').grid(
             row=1, column=2, sticky=tk.W, padx=5, pady=5
         )
 
-        ttk.Label(self.export_frame, text="End Date:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
-        self.export_end_date_entry = ttk.Entry(self.export_frame, width=20)
-        self.export_end_date_entry.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
-        default_end = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
-        self.export_end_date_entry.insert(0, default_end)
-
-        ttk.Label(self.export_frame, text="(YYYY-MM-DD)", font=('Arial', 9), foreground='gray').grid(
-            row=2, column=2, sticky=tk.W, padx=5, pady=5
-        )
-
-        ttk.Label(self.export_frame, text="Output File:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(self.export_frame, text="Output File:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
         self.export_file_entry = ttk.Entry(self.export_frame, width=40)
-        self.export_file_entry.grid(row=3, column=1, sticky=tk.EW, padx=5, pady=5)
+        self.export_file_entry.grid(row=2, column=1, sticky=tk.EW, padx=5, pady=5)
         self.export_frame.columnconfigure(1, weight=1)
 
         ttk.Button(
             self.export_frame,
             text="Browse...",
             command=self.browse_export_file
-        ).grid(row=3, column=2, padx=5, pady=5)
+        ).grid(row=2, column=2, padx=5, pady=5)
 
         # Progress frame
         self.import_export_progress_frame = self.create_progress_frame(tab)
@@ -737,19 +717,10 @@ class CalendarWindow(BaseOperationWindow):
 
     def browse_export_file(self):
         """Browse for export file location."""
-        # Get selected format
-        export_format = self.export_format_var.get()
-        if export_format == "csv":
-            defaultext = ".csv"
-            filetypes = [("CSV files", "*.csv"), ("All files", "*.*")]
-        else:  # ics
-            defaultext = ".ics"
-            filetypes = [("iCalendar files", "*.ics"), ("All files", "*.*")]
-
         file_path = filedialog.asksaveasfilename(
             title="Save Events As",
-            defaultextension=defaultext,
-            filetypes=filetypes
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
         )
         if file_path:
             self.export_file_entry.delete(0, tk.END)
@@ -762,7 +733,6 @@ class CalendarWindow(BaseOperationWindow):
         start_date = self.export_start_date_entry.get().strip()
         end_date = self.export_end_date_entry.get().strip()
         output_file = self.export_file_entry.get().strip()
-        export_format = self.export_format_var.get()
 
         # Validate fields
         if not owner:
@@ -793,8 +763,7 @@ class CalendarWindow(BaseOperationWindow):
             return
 
         # Confirm
-        format_name = "CSV" if export_format == "csv" else "ICS"
-        if not messagebox.askyesno("Confirm", f"Export events from {start_date} to {end_date} as {format_name}?"):
+        if not messagebox.askyesno("Confirm", f"Export events from {start_date} to {end_date}?"):
             return
 
         # Clear and execute
@@ -805,6 +774,5 @@ class CalendarWindow(BaseOperationWindow):
             calendar_id,
             start_date,
             end_date,
-            output_file,
-            export_format
+            output_file
         )
