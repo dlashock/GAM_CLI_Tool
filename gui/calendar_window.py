@@ -616,51 +616,30 @@ class CalendarWindow(BaseOperationWindow):
     # ==================== TAB 4: IMPORT/EXPORT ====================
 
     def create_import_export_tab(self):
-        """Create tab for importing/exporting calendar data."""
+        """Create tab for exporting calendar data."""
         tab = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(tab, text="Import/Export")
+        self.notebook.add(tab, text="Export Calendar")
 
         # Instructions
         instructions = ttk.Label(
             tab,
-            text="Import events from .ics files or export events to CSV.",
+            text="Export calendar events to ICS or CSV format.",
             wraplength=800
         )
         instructions.pack(pady=(0, 10), anchor=tk.W)
-
-        # Operation type
-        operation_frame = ttk.LabelFrame(tab, text="Operation", padding="10")
-        operation_frame.pack(fill=tk.X, pady=(0, 10))
-
-        self.import_export_operation_var = tk.StringVar(value="import")
-        ttk.Radiobutton(
-            operation_frame,
-            text="Import Calendar",
-            variable=self.import_export_operation_var,
-            value="import",
-            command=self.toggle_import_export_operation
-        ).pack(side=tk.LEFT, padx=(0, 20))
-
-        ttk.Radiobutton(
-            operation_frame,
-            text="Export Calendar",
-            variable=self.import_export_operation_var,
-            value="export",
-            command=self.toggle_import_export_operation
-        ).pack(side=tk.LEFT)
 
         # Shared Calendar Selection Frame
         calendar_frame = ttk.LabelFrame(tab, text="Calendar Selection", padding="10")
         calendar_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # Calendar Owner (shared)
+        # Calendar Owner
         row = 0
         ttk.Label(calendar_frame, text="Calendar Owner:").grid(row=row, column=0, sticky=tk.W, padx=5, pady=5)
         self.import_export_owner_combo = ttk.Combobox(calendar_frame, width=40)
         self.import_export_owner_combo.grid(row=row, column=1, sticky=tk.EW, padx=5, pady=5)
         calendar_frame.columnconfigure(1, weight=1)
 
-        # Calendar Name (shared)
+        # Calendar Name
         row += 1
         ttk.Label(calendar_frame, text="Calendar Name:").grid(row=row, column=0, sticky=tk.W, padx=5, pady=5)
         self.import_export_calendar_combo = ttk.Combobox(calendar_frame, width=40)
@@ -672,55 +651,63 @@ class CalendarWindow(BaseOperationWindow):
             command=self.load_calendars_for_import_export
         ).grid(row=row, column=2, padx=5, pady=5)
 
-        # Import-specific frame
-        self.import_frame = ttk.LabelFrame(tab, text="Import Settings", padding="10")
-
-        ttk.Label(self.import_frame, text=".ics File:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.import_file_entry = ttk.Entry(self.import_frame, width=40)
-        self.import_file_entry.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=5)
-        self.import_frame.columnconfigure(1, weight=1)
-
-        ttk.Button(
-            self.import_frame,
-            text="Browse...",
-            command=self.browse_import_file
-        ).grid(row=0, column=2, padx=5, pady=5)
-
-        # Export-specific frame
+        # Export settings frame
         self.export_frame = ttk.LabelFrame(tab, text="Export Settings", padding="10")
+        self.export_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(self.export_frame, text="Start Date:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        # Format selection
+        ttk.Label(self.export_frame, text="Format:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.export_format_var = tk.StringVar(value="csv")
+        format_frame = ttk.Frame(self.export_frame)
+        format_frame.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+
+        ttk.Radiobutton(
+            format_frame,
+            text="CSV",
+            variable=self.export_format_var,
+            value="csv"
+        ).pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(
+            format_frame,
+            text="ICS (iCalendar)",
+            variable=self.export_format_var,
+            value="ics"
+        ).pack(side=tk.LEFT)
+
+        # Date range
+        ttk.Label(self.export_frame, text="Start Date:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
         self.export_start_date_entry = ttk.Entry(self.export_frame, width=20)
-        self.export_start_date_entry.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        self.export_start_date_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
         default_start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
         self.export_start_date_entry.insert(0, default_start)
-
-        ttk.Label(self.export_frame, text="(YYYY-MM-DD)", font=('Arial', 9), foreground='gray').grid(
-            row=0, column=2, sticky=tk.W, padx=5, pady=5
-        )
-
-        ttk.Label(self.export_frame, text="End Date:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self.export_end_date_entry = ttk.Entry(self.export_frame, width=20)
-        self.export_end_date_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
-        default_end = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
-        self.export_end_date_entry.insert(0, default_end)
 
         ttk.Label(self.export_frame, text="(YYYY-MM-DD)", font=('Arial', 9), foreground='gray').grid(
             row=1, column=2, sticky=tk.W, padx=5, pady=5
         )
 
-        ttk.Label(self.export_frame, text="Output File:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(self.export_frame, text="End Date:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.export_end_date_entry = ttk.Entry(self.export_frame, width=20)
+        self.export_end_date_entry.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        default_end = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        self.export_end_date_entry.insert(0, default_end)
+
+        ttk.Label(self.export_frame, text="(YYYY-MM-DD)", font=('Arial', 9), foreground='gray').grid(
+            row=2, column=2, sticky=tk.W, padx=5, pady=5
+        )
+
+        ttk.Label(self.export_frame, text="Output File:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
         self.export_file_entry = ttk.Entry(self.export_frame, width=40)
-        self.export_file_entry.grid(row=2, column=1, sticky=tk.EW, padx=5, pady=5)
+        self.export_file_entry.grid(row=3, column=1, sticky=tk.EW, padx=5, pady=5)
         self.export_frame.columnconfigure(1, weight=1)
 
         ttk.Button(
             self.export_frame,
             text="Browse...",
             command=self.browse_export_file
-        ).grid(row=2, column=2, padx=5, pady=5)
+        ).grid(row=3, column=2, padx=5, pady=5)
 
-        # Progress frame (create before toggle to avoid attribute error)
+        # Progress frame
         self.import_export_progress_frame = self.create_progress_frame(tab)
         self.import_export_progress_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
@@ -731,26 +718,12 @@ class CalendarWindow(BaseOperationWindow):
         ttk.Button(
             execute_frame,
             text="Execute",
-            command=self.execute_import_export_operation,
+            command=self.execute_export_operation,
             width=20
         ).pack(side=tk.LEFT)
 
-        # Initial state (call after progress frame is created)
-        self.toggle_import_export_operation()
-
-    def toggle_import_export_operation(self):
-        """Toggle between import and export modes."""
-        if self.import_export_operation_var.get() == "import":
-            # Import mode - pack before progress frame to prevent jumping
-            self.export_frame.pack_forget()
-            self.import_frame.pack(fill=tk.X, pady=(0, 10), before=self.import_export_progress_frame)
-        else:
-            # Export mode - pack before progress frame to prevent jumping
-            self.import_frame.pack_forget()
-            self.export_frame.pack(fill=tk.X, pady=(0, 10), before=self.import_export_progress_frame)
-
     def load_calendars_for_import_export(self):
-        """Load calendars for import/export."""
+        """Load calendars for export."""
         owner_email = self.import_export_owner_combo.get().strip()
         if not owner_email:
             messagebox.showwarning("Warning", "Please enter calendar owner email first")
@@ -762,39 +735,47 @@ class CalendarWindow(BaseOperationWindow):
 
         self.load_combobox_async(self.import_export_calendar_combo, fetch_calendars, enable_fuzzy=True)
 
-    def browse_import_file(self):
-        """Browse for import .ics file."""
-        file_path = filedialog.askopenfilename(
-            title="Select .ics File",
-            filetypes=[("iCalendar files", "*.ics"), ("All files", "*.*")]
-        )
-        if file_path:
-            self.import_file_entry.delete(0, tk.END)
-            self.import_file_entry.insert(0, file_path)
-
     def browse_export_file(self):
         """Browse for export file location."""
+        # Get selected format
+        export_format = self.export_format_var.get()
+        if export_format == "csv":
+            defaultext = ".csv"
+            filetypes = [("CSV files", "*.csv"), ("All files", "*.*")]
+        else:  # ics
+            defaultext = ".ics"
+            filetypes = [("iCalendar files", "*.ics"), ("All files", "*.*")]
+
         file_path = filedialog.asksaveasfilename(
             title="Save Events As",
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            defaultextension=defaultext,
+            filetypes=filetypes
         )
         if file_path:
             self.export_file_entry.delete(0, tk.END)
             self.export_file_entry.insert(0, file_path)
 
-    def execute_import_export_operation(self):
-        """Execute import or export operation."""
-        operation = self.import_export_operation_var.get()
+    def execute_export_operation(self):
+        """Execute calendar export operation."""
         owner = self.import_export_owner_combo.get().strip()
         calendar_input = self.import_export_calendar_combo.get().strip()
+        start_date = self.export_start_date_entry.get().strip()
+        end_date = self.export_end_date_entry.get().strip()
+        output_file = self.export_file_entry.get().strip()
+        export_format = self.export_format_var.get()
 
-        # Validate common fields
+        # Validate fields
         if not owner:
             messagebox.showerror("Error", "Please enter calendar owner email")
             return
         if not calendar_input:
             messagebox.showerror("Error", "Please select calendar")
+            return
+        if not start_date or not end_date:
+            messagebox.showerror("Error", "Please enter date range")
+            return
+        if not output_file:
+            messagebox.showerror("Error", "Please select output file")
             return
 
         # Extract calendar ID
@@ -803,64 +784,27 @@ class CalendarWindow(BaseOperationWindow):
         else:
             calendar_id = calendar_input
 
-        if operation == "import":
-            # Import operation
-            ics_file = self.import_file_entry.get().strip()
+        # Validate date format
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
+        except ValueError:
+            messagebox.showerror("Error", "Invalid date format. Use YYYY-MM-DD")
+            return
 
-            if not ics_file:
-                messagebox.showerror("Error", "Please select .ics file")
-                return
+        # Confirm
+        format_name = "CSV" if export_format == "csv" else "ICS"
+        if not messagebox.askyesno("Confirm", f"Export events from {start_date} to {end_date} as {format_name}?"):
+            return
 
-            if not os.path.exists(ics_file):
-                messagebox.showerror("Error", f"File not found: {ics_file}")
-                return
-
-            # Confirm
-            if not messagebox.askyesno("Confirm", f"Import events from {os.path.basename(ics_file)} to calendar {calendar_id}?"):
-                return
-
-            # Clear and execute
-            self.clear_results(self.import_export_progress_frame)
-            self.run_operation(
-                calendar_ops.import_calendar,
-                self.import_export_progress_frame,
-                owner,
-                calendar_id,
-                ics_file
-            )
-
-        else:
-            # Export operation
-            start_date = self.export_start_date_entry.get().strip()
-            end_date = self.export_end_date_entry.get().strip()
-            output_file = self.export_file_entry.get().strip()
-
-            if not start_date or not end_date:
-                messagebox.showerror("Error", "Please enter date range")
-                return
-            if not output_file:
-                messagebox.showerror("Error", "Please select output file")
-                return
-
-            # Validate date format
-            try:
-                datetime.strptime(start_date, '%Y-%m-%d')
-                datetime.strptime(end_date, '%Y-%m-%d')
-            except ValueError:
-                messagebox.showerror("Error", "Invalid date format. Use YYYY-MM-DD")
-                return
-
-            # Confirm
-            if not messagebox.askyesno("Confirm", f"Export events from {start_date} to {end_date}?"):
-                return
-
-            # Clear and execute
-            self.clear_results(self.import_export_progress_frame)
-            self.run_operation(
-                calendar_ops.export_calendar_events,
-                self.import_export_progress_frame,
-                calendar_id,
-                start_date,
-                end_date,
-                output_file
-            )
+        # Clear and execute
+        self.clear_results(self.import_export_progress_frame)
+        self.run_operation(
+            calendar_ops.export_calendar_events,
+            self.import_export_progress_frame,
+            calendar_id,
+            start_date,
+            end_date,
+            output_file,
+            export_format
+        )
