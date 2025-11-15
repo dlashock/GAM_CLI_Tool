@@ -37,11 +37,15 @@ A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/G
 
 ### Calendar Operations (Fully Implemented)
 
-- **Manage Calendar Permissions** - Share calendars with users/groups with customizable access levels
+- **Manage Calendar Permissions** - Share calendars with users/groups with customizable access levels (Reader, Writer, Owner)
 - **Create/Delete Calendars** - Create new calendars or delete existing ones
 - **View Calendar Information** - Display calendar details, URLs, and permission lists
-- **Import/Export Calendar Data** - Import .ics files and export events to CSV
-- **Permission Levels** - Reader, Writer, and Owner access with optional notifications
+- **Export Calendar Events** - Export events to CSV in Google Calendar import format with date range selection
+- **Import Calendar Events** - Import events from CSV files with timezone support
+  - Supports Google Calendar CSV format (Subject, Start Date/Time, End Date/Time, etc.)
+  - Configurable timezone selection (15+ timezones including US, Europe, Asia, Australia)
+  - Individual event creation with progress tracking
+  - Handles both timed and all-day events
 
 ### Bulk Operations Support
 
@@ -86,7 +90,7 @@ A modern graphical user interface (GUI) for [GAM7](https://github.com/GAM-team/G
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/GAM_CLI_Tool.git
+git clone https://github.com/dlashock/GAM_CLI_Tool.git
 cd GAM_CLI_Tool
 
 # Install dependencies (optional, only for building)
@@ -141,28 +145,33 @@ user3@yourdomain.com
 
 ## Building from Source
 
-### Build Executable
+For detailed build instructions, see [packaging/README.md](packaging/README.md)
+
+### Quick Build
 
 ```bash
 # Install PyInstaller
 pip install pyinstaller
 
 # (Optional) Create application icon
-python3 create_icon.py
+python3 packaging/create_icon.py
 
 # Build the executable
-pyinstaller build.spec
+pyinstaller packaging/build.spec
 
-# Output will be in dist/GAM_Admin_Tool.exe
+# Output will be in dist/GAM_Admin_Tool.exe (Windows)
+# or dist/GAM_Admin_Tool (macOS/Linux)
 ```
 
-### Building on Different Platforms
+### Platform Support
 
 - **Windows**: Produces `.exe` executable
-- **macOS**: Produces `.app` bundle
+- **macOS**: Produces `.app` bundle or binary
 - **Linux**: Produces standalone binary
 
 **Note**: Build on the target platform (Windows build must be done on Windows, etc.)
+
+For platform-specific build instructions, troubleshooting, and distribution guidance, see the [packaging documentation](packaging/README.md).
 
 ## Troubleshooting
 
