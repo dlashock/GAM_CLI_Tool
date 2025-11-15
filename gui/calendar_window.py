@@ -228,8 +228,12 @@ class CalendarWindow(BaseOperationWindow):
             return
 
         def fetch_calendars():
+            print(f"DEBUG: Fetching calendars for {owner_email}")
             calendars = calendar_ops.get_user_calendars(owner_email)
-            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
+            print(f"DEBUG: Got {len(calendars)} calendars")
+            formatted = [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
+            print(f"DEBUG: Formatted to {len(formatted)} items: {formatted}")
+            return formatted
 
         self.load_combobox_async(self.permissions_calendar_combo, fetch_calendars, enable_fuzzy=True)
 
@@ -366,22 +370,10 @@ class CalendarWindow(BaseOperationWindow):
         self.create_calendar_frame.grid(row=3, column=0, columnspan=3, sticky=tk.EW, pady=(10, 0))
 
         # Description (create only)
-        ttk.Label(self.create_calendar_frame, text="Description:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(self.create_calendar_frame, text="Description (Optional):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
         self.create_calendar_desc_entry = ttk.Entry(self.create_calendar_frame, width=40)
         self.create_calendar_desc_entry.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=5)
         self.create_calendar_frame.columnconfigure(1, weight=1)
-
-        # Color (create only)
-        ttk.Label(self.create_calendar_frame, text="Color:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self.create_calendar_color_var = tk.StringVar(value="")
-        color_combo = ttk.Combobox(
-            self.create_calendar_frame,
-            textvariable=self.create_calendar_color_var,
-            values=list(CALENDAR_COLORS.values()),
-            state="readonly",
-            width=20
-        )
-        color_combo.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
 
         # Progress frame
         self.manage_calendar_progress_frame = self.create_progress_frame(tab)
@@ -424,8 +416,12 @@ class CalendarWindow(BaseOperationWindow):
             return
 
         def fetch_calendars():
+            print(f"DEBUG: [Manage] Fetching calendars for {owner_email}")
             calendars = calendar_ops.get_user_calendars(owner_email)
-            return [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
+            print(f"DEBUG: [Manage] Got {len(calendars)} calendars")
+            formatted = [f"{cal['summary']} ({cal['id']})" for cal in calendars if cal.get('id')]
+            print(f"DEBUG: [Manage] Formatted to {len(formatted)} items")
+            return formatted
 
         self.load_combobox_async(self.manage_calendar_name_combo, fetch_calendars, enable_fuzzy=True)
 
@@ -447,14 +443,6 @@ class CalendarWindow(BaseOperationWindow):
                 return
             name = calendar_input
             description = self.create_calendar_desc_entry.get().strip()
-            color_name = self.create_calendar_color_var.get()
-
-            # Get color ID from name
-            color_id = None
-            for cid, cname in CALENDAR_COLORS.items():
-                if cname == color_name and cid:
-                    color_id = cid
-                    break
 
             # Confirm
             if not messagebox.askyesno("Confirm", f"Create calendar '{name}' for {owner}?"):
@@ -467,8 +455,7 @@ class CalendarWindow(BaseOperationWindow):
                 self.manage_calendar_progress_frame,
                 owner,
                 name,
-                description,
-                color_id
+                description
             )
 
         else:
