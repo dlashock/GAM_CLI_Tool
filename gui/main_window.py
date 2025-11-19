@@ -148,9 +148,9 @@ class MainWindow(ttk.Frame):
             from gui.reports_window import ReportsWindow
             ReportsWindow(self.parent)
         except ImportError as e:
-            messagebox.showinfo(
-                "Module Not Available",
-                "Reports module is not yet implemented."
+            messagebox.showerror(
+                "Import Error",
+                f"Failed to import Reports module.\n\nError: {str(e)}\n\nPlease ensure you've pulled the latest changes."
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open Reports: {str(e)}")
