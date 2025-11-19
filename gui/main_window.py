@@ -174,9 +174,9 @@ class MainWindow(ttk.Frame):
             from gui.drive_window import DriveWindow
             DriveWindow(self.parent)
         except ImportError as e:
-            messagebox.showinfo(
-                "Module Not Available",
-                "Drive Operations module is not yet implemented."
+            messagebox.showerror(
+                "Import Error",
+                f"Failed to import Drive Operations module.\n\nError: {str(e)}\n\nPlease ensure you've pulled the latest changes."
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open Drive Operations: {str(e)}")
