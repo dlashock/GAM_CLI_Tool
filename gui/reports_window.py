@@ -147,7 +147,8 @@ class ReportsWindow(BaseOperationWindow):
         export_btn.pack(side=tk.LEFT, padx=5)
 
         # Progress Frame
-        progress_frame = self.create_progress_frame(main_container, 'user_activity_report')
+        progress_frame = self.create_progress_frame(main_container)
+        progress_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Store variables for later use
         self.user_activity_vars = {
@@ -233,7 +234,8 @@ class ReportsWindow(BaseOperationWindow):
         export_btn.pack(side=tk.LEFT, padx=5)
 
         # Progress Frame
-        progress_frame = self.create_progress_frame(main_container, 'storage_report')
+        progress_frame = self.create_progress_frame(main_container)
+        progress_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Store variables
         self.storage_vars = {
@@ -328,7 +330,8 @@ class ReportsWindow(BaseOperationWindow):
         export_btn.pack(side=tk.LEFT, padx=5)
 
         # Progress Frame
-        progress_frame = self.create_progress_frame(main_container, 'email_usage_report')
+        progress_frame = self.create_progress_frame(main_container)
+        progress_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Store variables
         self.email_usage_vars = {
@@ -432,7 +435,8 @@ class ReportsWindow(BaseOperationWindow):
         export_btn.pack(side=tk.LEFT, padx=5)
 
         # Progress Frame
-        progress_frame = self.create_progress_frame(main_container, 'admin_audit_report')
+        progress_frame = self.create_progress_frame(main_container)
+        progress_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Store variables
         self.admin_audit_vars = {
