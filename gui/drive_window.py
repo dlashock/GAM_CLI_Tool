@@ -67,22 +67,29 @@ class DriveWindow(BaseOperationWindow):
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="🔍 Security Scanner")
 
-        # Instructions
-        info_frame = ttk.LabelFrame(tab, text="About Security Scanner", padding="10")
+        # Instructions - condensed layout with side-by-side columns
+        info_frame = ttk.LabelFrame(tab, text="⚠️  CRITICAL SECURITY FEATURE", padding="10")
         info_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        info_text = (
-            "⚠️  CRITICAL SECURITY FEATURE\n\n"
-            "This scanner identifies files shared outside your organization:\n"
-            "• Files shared with external email addresses\n"
-            "• 'Anyone with the link' sharing\n"
-            "• External domain sharing\n\n"
-            "Use this to:\n"
-            "✓ Ensure FERPA compliance (K-12)\n"
-            "✓ Prevent data leakage\n"
-            "✓ Audit external file sharing"
-        )
-        ttk.Label(info_frame, text=info_text, justify=tk.LEFT).pack()
+        # Create two-column layout
+        columns_frame = ttk.Frame(info_frame)
+        columns_frame.pack(fill=tk.X)
+
+        # Left column - What it scans for
+        left_column = ttk.Frame(columns_frame)
+        left_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+
+        ttk.Label(left_column, text="Identifies files shared outside your org:", font=('Arial', 9, 'bold')).pack(anchor=tk.W)
+        for item in ["• External email addresses", "• 'Anyone with link' sharing", "• External domain sharing"]:
+            ttk.Label(left_column, text=item, font=('Arial', 9)).pack(anchor=tk.W, padx=10)
+
+        # Right column - Use cases
+        right_column = ttk.Frame(columns_frame)
+        right_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+
+        ttk.Label(right_column, text="Use this to:", font=('Arial', 9, 'bold')).pack(anchor=tk.W)
+        for item in ["✓ Ensure FERPA compliance (K-12)", "✓ Prevent data leakage", "✓ Audit external sharing"]:
+            ttk.Label(right_column, text=item, font=('Arial', 9)).pack(anchor=tk.W, padx=10)
 
         # Target selection
         target_frame = self.create_combobox_user_target_selection_frame(
@@ -102,16 +109,32 @@ class DriveWindow(BaseOperationWindow):
         config_frame = ttk.LabelFrame(tab, text="Scan Configuration", padding="10")
         config_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        # Domain input
+        # Domain input - combobox for non-Google domains
         domain_input_frame = ttk.Frame(config_frame)
         domain_input_frame.pack(fill=tk.X, pady=5)
 
         ttk.Label(domain_input_frame, text="Your Organization Domain:").pack(side=tk.LEFT, padx=5)
-        self.security_scan_domain_entry = ttk.Entry(domain_input_frame, width=30)
-        self.security_scan_domain_entry.pack(side=tk.LEFT, padx=5)
-        self.security_scan_domain_entry.insert(0, "school.edu")  # Placeholder
 
-        ttk.Label(domain_input_frame, text="(e.g., school.edu)").pack(side=tk.LEFT, padx=5)
+        self.security_scan_domain_var = tk.StringVar()
+        self.security_scan_domain_combo = ttk.Combobox(
+            domain_input_frame,
+            textvariable=self.security_scan_domain_var,
+            width=28
+        )
+        self.security_scan_domain_combo.pack(side=tk.LEFT, padx=5)
+
+        # Set placeholder and load domains asynchronously
+        self.security_scan_domain_combo.set("school.edu")
+
+        # Load domain aliases from Google Workspace
+        from utils.workspace_data import fetch_domain_aliases
+        self.load_combobox_async(
+            self.security_scan_domain_combo,
+            fetch_domain_aliases,
+            enable_fuzzy=False
+        )
+
+        ttk.Label(domain_input_frame, text="(select or type your domain)").pack(side=tk.LEFT, padx=5)
 
         # Scan options
         options_frame = ttk.Frame(config_frame)
@@ -564,7 +587,7 @@ class DriveWindow(BaseOperationWindow):
             return
 
         # Get domain
-        domain = self.security_scan_domain_entry.get().strip()
+        domain = self.security_scan_domain_var.get().strip()
         if not domain:
             messagebox.showerror("Error", "Please enter your organization domain (e.g., school.edu)")
             return

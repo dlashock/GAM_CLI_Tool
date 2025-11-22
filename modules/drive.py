@@ -526,19 +526,22 @@ def search_files(users, query, max_results=100):
                     'message': f'✓ {user_email}: Found {len(user_files)} file(s)'
                 }
             else:
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                log_error("Search Files", f"GAM failed for {user_email}: {error_msg}")
                 yield {
                     'status': 'error',
                     'user': user_email,
-                    'message': f'✗ Search failed for {user_email}'
+                    'message': f'✗ Search failed for {user_email}: {error_msg}'
                 }
 
         except Exception as e:
+            error_msg = str(e)
+            log_error("Search Files", f"Exception for {user_email}: {error_msg}")
             yield {
                 'status': 'error',
                 'user': user_email,
-                'message': f'✗ Error searching {user_email}'
+                'message': f'✗ Error searching {user_email}: {error_msg}'
             }
-            log_error("Search Files", f"Exception for {user_email}: {str(e)}")
 
     return {
         'total_files_found': total_files_found,

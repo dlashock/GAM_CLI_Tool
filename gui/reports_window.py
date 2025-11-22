@@ -86,6 +86,13 @@ class ReportsWindow(BaseOperationWindow):
             value="inactive_users"
         ).pack(side=tk.LEFT, padx=10)
 
+        ttk.Radiobutton(
+            type_frame,
+            text="Never Logged In",
+            variable=report_type_var,
+            value="never_logged_in"
+        ).pack(side=tk.LEFT, padx=10)
+
         # Inactive threshold selection
         threshold_frame = ttk.Frame(config_frame)
         threshold_frame.pack(fill=tk.X, pady=5)
@@ -808,11 +815,16 @@ class ReportsWindow(BaseOperationWindow):
             operation_func = get_login_activity_report
             args = (30, include_suspended)
             report_name = "Login Activity Report"
-        else:  # inactive_users
+        elif report_type == "inactive_users":
             from modules.reports import get_inactive_users_report
             operation_func = get_inactive_users_report
-            args = (inactive_days, 30)
+            args = (inactive_days, 30, include_suspended)
             report_name = "Inactive Users Report"
+        else:  # never_logged_in
+            from modules.reports import get_never_logged_in_report
+            operation_func = get_never_logged_in_report
+            args = (include_suspended,)
+            report_name = "Never Logged In Report"
 
         # Confirmation
         confirm = messagebox.askyesno(

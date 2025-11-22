@@ -311,3 +311,87 @@ def fetch_group_members(group_email):
     except Exception as e:
         log_error("Fetch Group Members", f"Error fetching members for {group_email}: {str(e)}")
         return []
+
+
+def fetch_domain_aliases(force_refresh=False):
+    """
+    Fetch domain aliases from Google Workspace.
+
+    Returns:
+        list: List of domain names (including primary and aliases), or empty list on error
+    """
+    # Use a simple cache variable
+    global _domain_aliases_cache
+    if '_domain_aliases_cache' not in globals():
+        _domain_aliases_cache = None
+
+    # Return cached data if available and not forcing refresh
+    if _domain_aliases_cache is not None and not force_refresh:
+        return _domain_aliases_cache
+
+    try:
+        # Run GAM command to get domain information
+        gam_cmd = _get_gam_command()
+        result = subprocess.run(
+            [gam_cmd, 'print', 'domains'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+            # If command fails, try info domain instead
+            result = subprocess.run(
+                [gam_cmd, 'info', 'domain'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                log_error("Fetch Domains", f"GAM command failed: {result.stderr[:200]}")
+                return []
+
+            # Parse info domain output (different format)
+            domains = []
+            for line in result.stdout.split('\n'):
+                if 'primaryDomain:' in line or 'Primary Domain:' in line:
+                    domain = line.split(':', 1)[1].strip()
+                    domains.append(domain)
+                elif 'domainAliases:' in line or 'Domain Aliases:' in line:
+                    # May have comma-separated aliases
+                    aliases = line.split(':', 1)[1].strip()
+                    for alias in aliases.split(','):
+                        alias = alias.strip()
+                        if alias:
+                            domains.append(alias)
+
+            _domain_aliases_cache = domains if domains else []
+            return _domain_aliases_cache
+
+        # Parse CSV output
+        output = result.stdout
+        if not output.strip():
+            return []
+
+        # Parse CSV
+        domains = []
+        csv_reader = csv.DictReader(StringIO(output))
+
+        for row in csv_reader:
+            # Try common field names
+            domain = row.get('domainName') or row.get('domain') or row.get('Domain')
+            if domain:
+                domains.append(domain.strip())
+
+        # Cache the results
+        _domain_aliases_cache = domains
+
+        return domains
+
+    except subprocess.TimeoutExpired:
+        log_error("Fetch Domains", "Command timed out")
+        return []
+    except Exception as e:
+        log_error("Fetch Domains", f"Error fetching domains: {str(e)}")
+        return []

@@ -61,10 +61,10 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
     }
 
     # Get login activity using GAM print users
-    # Note: We need lastLoginTime field which shows when user last logged in
+    # Note: We need lastLoginTime and suspended fields
     cmd = [
         gam_cmd, 'print', 'users',
-        'fields', 'primaryemail,lastlogintime'
+        'fields', 'primaryemail,lastlogintime,suspended'
     ]
 
     try:
@@ -91,6 +91,12 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
         for row in reader:
             email = row.get('primaryEmail', row.get('email', ''))
             last_login_str = row.get('lastLoginTime', '')
+            suspended_str = row.get('suspended', 'False')
+            is_suspended = suspended_str.lower() in ['true', '1', 'yes']
+
+            # Skip suspended users if not including them
+            if is_suspended and not include_suspended:
+                continue
 
             # Parse last login time
             if last_login_str and last_login_str not in ['Never logged in', 'Never', '']:
@@ -828,7 +834,76 @@ def get_admin_activity_report(start_date='-30d', event_type='all'):
         return None
 
 
-def get_inactive_users_report(inactive_threshold_days=90, min_account_age_days=30):
+def get_never_logged_in_report(include_suspended=False):
+    """
+    Generate report of users who have never logged in.
+
+    Identifies users who have never logged in to their account. Useful for
+    identifying unused accounts and potential issues with onboarding.
+
+    Args:
+        include_suspended (bool): Include suspended users in report (default: False)
+
+    Yields:
+        dict: Progress updates with status, message, and optional report_data
+            - status: 'info', 'success', or 'error'
+            - message: Human-readable status message
+            - report_data: List of users who never logged in (on success)
+
+    Returns:
+        dict: Complete report data structure or None on error
+            - report_type: 'never_logged_in'
+            - date_generated: ISO timestamp
+            - total_never_logged_in: Count of users
+            - data: List of user records
+    """
+    # Reuse login activity report with filtering
+    yield {
+        'status': 'info',
+        'message': 'Identifying users who have never logged in...'
+    }
+
+    # Get full login activity report
+    report_gen = get_login_activity_report(date_range_days=30, include_suspended=include_suspended)
+
+    full_report = None
+    for progress in report_gen:
+        # Pass through progress updates
+        yield progress
+
+        # Capture final result
+        if progress.get('status') == 'success':
+            full_report = progress
+
+    if not full_report:
+        yield {
+            'status': 'error',
+            'message': 'Failed to generate login activity report'
+        }
+        return None
+
+    # Filter for users who never logged in
+    all_users = full_report.get('report_data', [])
+    never_logged_in_users = [
+        user for user in all_users
+        if user['days_since_login'] is None
+    ]
+
+    yield {
+        'status': 'success',
+        'message': f'Found {len(never_logged_in_users)} users who have never logged in',
+        'report_data': never_logged_in_users
+    }
+
+    return {
+        'report_type': 'never_logged_in',
+        'date_generated': datetime.now().isoformat(),
+        'total_never_logged_in': len(never_logged_in_users),
+        'data': never_logged_in_users
+    }
+
+
+def get_inactive_users_report(inactive_threshold_days=90, min_account_age_days=30, include_suspended=False):
     """
     Generate report of inactive users.
 
@@ -839,6 +914,7 @@ def get_inactive_users_report(inactive_threshold_days=90, min_account_age_days=3
         inactive_threshold_days (int): Days of inactivity to flag (default: 90)
         min_account_age_days (int): Minimum account age to consider (default: 30)
             Avoids flagging newly created accounts as inactive
+        include_suspended (bool): Include suspended users in report (default: False)
 
     Yields:
         dict: Progress updates with status, message, and optional report_data
@@ -861,7 +937,7 @@ def get_inactive_users_report(inactive_threshold_days=90, min_account_age_days=3
     }
 
     # Get full login activity report
-    report_gen = get_login_activity_report(date_range_days=inactive_threshold_days)
+    report_gen = get_login_activity_report(date_range_days=inactive_threshold_days, include_suspended=include_suspended)
 
     full_report = None
     for progress in report_gen:
