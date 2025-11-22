@@ -172,6 +172,74 @@ class ReportsWindow(BaseOperationWindow):
         config_frame = ttk.LabelFrame(main_container, text="Report Configuration", padding="10")
         config_frame.pack(fill=tk.X, padx=5, pady=5)
 
+        # Scope selection
+        scope_frame = ttk.LabelFrame(config_frame, text="Report Scope", padding="10")
+        scope_frame.pack(fill=tk.X, pady=5)
+
+        self.storage_scope_var = tk.StringVar(value="all")
+
+        scope_options_frame = ttk.Frame(scope_frame)
+        scope_options_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Radiobutton(
+            scope_options_frame,
+            text="All Users (Domain-wide)",
+            variable=self.storage_scope_var,
+            value="all",
+            command=self.toggle_storage_scope_fields
+        ).pack(side=tk.LEFT, padx=10)
+
+        ttk.Radiobutton(
+            scope_options_frame,
+            text="Specific User",
+            variable=self.storage_scope_var,
+            value="user",
+            command=self.toggle_storage_scope_fields
+        ).pack(side=tk.LEFT, padx=10)
+
+        ttk.Radiobutton(
+            scope_options_frame,
+            text="Organizational Unit",
+            variable=self.storage_scope_var,
+            value="ou",
+            command=self.toggle_storage_scope_fields
+        ).pack(side=tk.LEFT, padx=10)
+
+        # User/OU input frame
+        self.storage_target_frame = ttk.Frame(scope_frame)
+        self.storage_target_frame.pack(fill=tk.X, pady=5)
+
+        # User email input (for specific user)
+        self.storage_user_label = ttk.Label(self.storage_target_frame, text="User Email:")
+        self.storage_user_var = tk.StringVar()
+        self.storage_user_entry = ttk.Entry(self.storage_target_frame, textvariable=self.storage_user_var, width=40)
+
+        # OU combobox (for OU filter)
+        self.storage_ou_label = ttk.Label(self.storage_target_frame, text="Organizational Unit:")
+        self.storage_ou_var = tk.StringVar()
+        self.storage_ou_combo = ttk.Combobox(
+            self.storage_target_frame,
+            textvariable=self.storage_ou_var,
+            width=38
+        )
+        self.storage_ou_help = ttk.Label(
+            self.storage_target_frame,
+            text="(e.g., /Students or /Staff)",
+            font=('Arial', 8, 'italic'),
+            foreground='gray'
+        )
+
+        # Initialize visibility
+        self.toggle_storage_scope_fields()
+
+        # Load OUs asynchronously for combobox
+        from utils.workspace_data import fetch_org_units
+        self.load_combobox_async(
+            self.storage_ou_combo,
+            fetch_org_units,
+            enable_fuzzy=True
+        )
+
         # Quota threshold
         threshold_frame = ttk.Frame(config_frame)
         threshold_frame.pack(fill=tk.X, pady=5)
@@ -189,22 +257,6 @@ class ReportsWindow(BaseOperationWindow):
         )
         threshold_spin.pack(side=tk.LEFT, padx=5)
         ttk.Label(threshold_frame, text="% of quota").pack(side=tk.LEFT)
-
-        # Organizational Unit filter
-        ou_frame = ttk.Frame(config_frame)
-        ou_frame.pack(fill=tk.X, pady=5)
-
-        ttk.Label(ou_frame, text="Filter by OU (optional):").pack(side=tk.LEFT, padx=5)
-
-        ou_var = tk.StringVar()
-        ou_entry = ttk.Entry(ou_frame, textvariable=ou_var, width=30)
-        ou_entry.pack(side=tk.LEFT, padx=5)
-        ttk.Label(
-            ou_frame,
-            text="e.g., /Students or /Staff",
-            font=('Arial', 8, 'italic'),
-            foreground='gray'
-        ).pack(side=tk.LEFT, padx=5)
 
         # Options
         options_frame = ttk.Frame(config_frame)
@@ -235,7 +287,8 @@ class ReportsWindow(BaseOperationWindow):
             text="📊 Generate Report",
             command=lambda: self.execute_storage_report(
                 quota_threshold_var.get(),
-                ou_var.get().strip() or None,
+                self.storage_scope_var.get(),
+                self.storage_user_var.get().strip() if self.storage_scope_var.get() == 'user' else self.storage_ou_var.get().strip(),
                 auto_export_var.get()
             ),
             width=20
@@ -257,7 +310,6 @@ class ReportsWindow(BaseOperationWindow):
         # Store variables
         self.storage_vars = {
             'quota_threshold': quota_threshold_var,
-            'ou': ou_var,
             'auto_export': auto_export_var,
             'progress_frame': progress_frame
         }
@@ -720,6 +772,25 @@ class ReportsWindow(BaseOperationWindow):
                 foreground='gray'
             ).pack(side=tk.LEFT)
 
+    def toggle_storage_scope_fields(self):
+        """Toggle visibility of storage target input based on scope selection."""
+        scope = self.storage_scope_var.get()
+
+        # Hide all widgets first
+        for widget in self.storage_target_frame.winfo_children():
+            widget.pack_forget()
+
+        if scope == 'user':
+            # Show user email input
+            self.storage_user_label.pack(side=tk.LEFT, padx=5)
+            self.storage_user_entry.pack(side=tk.LEFT, padx=5)
+        elif scope == 'ou':
+            # Show OU combobox
+            self.storage_ou_label.pack(side=tk.LEFT, padx=5)
+            self.storage_ou_combo.pack(side=tk.LEFT, padx=5)
+            self.storage_ou_help.pack(side=tk.LEFT, padx=5)
+        # else: scope == 'all', keep widgets hidden
+
     # Execution Methods
 
     def execute_user_activity_report(self, report_type, inactive_days, include_suspended, auto_export):
@@ -762,7 +833,7 @@ class ReportsWindow(BaseOperationWindow):
             *args
         )
 
-    def execute_storage_report(self, quota_threshold, org_unit, auto_export):
+    def execute_storage_report(self, quota_threshold, scope, target, auto_export):
         """Execute storage usage report generation."""
         progress_frame = self.storage_vars['progress_frame']
 
@@ -771,19 +842,41 @@ class ReportsWindow(BaseOperationWindow):
         progress_frame.results_text.delete("1.0", tk.END)
         progress_frame.results_text.config(state=tk.DISABLED)
 
+        # Validate scope-specific inputs
+        if scope == 'user' and not target:
+            messagebox.showerror(
+                "Input Required",
+                "Please enter a user email address."
+            )
+            return
+        elif scope == 'ou' and not target:
+            messagebox.showerror(
+                "Input Required",
+                "Please select an Organizational Unit."
+            )
+            return
+
         from modules.reports import get_storage_usage_report
 
         # Build confirmation message
-        ou_msg = f"\nFiltering by OU: {org_unit}" if org_unit else ""
+        scope_msg = {
+            'all': 'All Users (Domain-wide)',
+            'user': f'User: {target}',
+            'ou': f'OU: {target}'
+        }
+
         confirm = messagebox.askyesno(
             "Generate Report",
-            f"Generate Storage Usage Report?{ou_msg}\n\nThis may take several minutes for large organizations."
+            f"Generate Storage Usage Report?\n\n"
+            f"Scope: {scope_msg[scope]}\n\n"
+            f"This may take several minutes for large organizations."
         )
 
         if not confirm:
             return
 
         # Run report operation with result capture
+        # Pass org_unit for OU scope, None otherwise
         self.run_report_operation(
             get_storage_usage_report,
             progress_frame,
@@ -791,7 +884,8 @@ class ReportsWindow(BaseOperationWindow):
             auto_export,
             'storage',
             quota_threshold,
-            org_unit
+            target if scope == 'ou' else None,  # org_unit parameter
+            target if scope == 'user' else None  # user_email parameter (new)
         )
 
     def execute_email_usage_report(self, start_date, end_date, scope, target, auto_export):

@@ -190,9 +190,9 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
         return None
 
 
-def get_storage_usage_report(quota_threshold_percent=80, org_unit=None):
+def get_storage_usage_report(quota_threshold_percent=80, org_unit=None, user_email=None):
     """
-    Generate storage usage report for all users or users in a specific OU.
+    Generate storage usage report for all users, a specific user, or users in a specific OU.
 
     Fetches Drive and Gmail storage usage for all users. Useful for capacity
     planning, identifying users over quota, and optimizing storage costs.
@@ -200,6 +200,7 @@ def get_storage_usage_report(quota_threshold_percent=80, org_unit=None):
     Args:
         quota_threshold_percent (int): Highlight users over this % of quota (default: 80)
         org_unit (str): Optional organizational unit path to filter users (e.g., '/Students')
+        user_email (str): Optional specific user email to get storage for
 
     Yields:
         dict: Progress updates with status, message, and optional report_data
@@ -218,19 +219,31 @@ def get_storage_usage_report(quota_threshold_percent=80, org_unit=None):
     """
     gam_cmd = get_gam_command()
 
+    # Determine scope message
+    if user_email:
+        scope_msg = f'user {user_email}'
+        users = [user_email]
+    elif org_unit:
+        scope_msg = f'users from {org_unit}'
+        # Get users from OU
+        from utils.workspace_data import fetch_users
+        users = fetch_users(org_unit=org_unit)
+    else:
+        scope_msg = 'all users'
+        # Get all users
+        from utils.workspace_data import fetch_users
+        users = fetch_users()
+
     yield {
         'status': 'info',
-        'message': f'Fetching user list{" from " + org_unit if org_unit else ""}...'
+        'message': f'Fetching storage usage for {scope_msg}...'
     }
 
-    # First, get all users (optionally filtered by OU)
-    from utils.workspace_data import fetch_users
-    users = fetch_users(org_unit=org_unit)
-
+    # Validate user list
     if not users:
         yield {
             'status': 'error',
-            'message': 'Failed to fetch users'
+            'message': 'Failed to fetch users or invalid user email'
         }
         return None
 
