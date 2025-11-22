@@ -387,17 +387,19 @@ def get_storage_usage_report(quota_threshold_percent=80, org_unit=None):
     }
 
 
-def get_email_usage_report(start_date, end_date=None):
+def get_email_usage_report(start_date, end_date=None, scope='all', target=None):
     """
     Generate email usage statistics report.
 
-    Fetches email sending and receiving statistics for all users over a date range.
-    Useful for detecting spam senders, identifying inactive mailboxes, and
-    understanding communication patterns.
+    Fetches email sending and receiving statistics for all users, a specific user,
+    or all members of a group over a date range. Useful for detecting spam senders,
+    identifying inactive mailboxes, and understanding communication patterns.
 
     Args:
         start_date (str): Start date in YYYY-MM-DD format or relative (-7d, -30d)
         end_date (str, optional): End date in YYYY-MM-DD format (default: today)
+        scope (str): Report scope - 'all' (domain-wide), 'user', or 'group'
+        target (str, optional): Email address of user or group (required if scope is 'user' or 'group')
 
     Yields:
         dict: Progress updates with status, message, and optional report_data
@@ -415,20 +417,108 @@ def get_email_usage_report(start_date, end_date=None):
     """
     gam_cmd = get_gam_command()
 
-    yield {
-        'status': 'info',
-        'message': 'Fetching email usage statistics...'
+    scope_msg = {
+        'all': 'all users',
+        'user': f'user {target}',
+        'group': f'group {target}'
     }
 
-    # Build GAM command
-    cmd = [
-        gam_cmd, 'report', 'usage', 'customer',
-        'parameters', 'gmail:num_emails_sent,gmail:num_emails_received',
-        'start', start_date
-    ]
+    yield {
+        'status': 'info',
+        'message': f'Fetching email usage statistics for {scope_msg.get(scope, "all users")}...'
+    }
 
-    if end_date:
+    # Build GAM command based on scope
+    if scope == 'user':
+        # For a specific user, use user-level report
+        cmd = [
+            gam_cmd, 'user', target,
+            'report', 'usage',
+            'parameters', 'gmail:num_emails_sent,gmail:num_emails_received',
+            'start', start_date
+        ]
+    elif scope == 'group':
+        # For a group, get all members and aggregate their data
+        # First, get group members
+        yield {
+            'status': 'info',
+            'message': f'Fetching members of group {target}...'
+        }
+
+        # We'll handle group reporting by getting members and then individual reports
+        # This will be processed differently below
+        cmd = None  # Set to None to handle separately
+    else:  # scope == 'all'
+        # Domain-wide report
+        cmd = [
+            gam_cmd, 'report', 'usage', 'customer',
+            'parameters', 'gmail:num_emails_sent,gmail:num_emails_received',
+            'start', start_date
+        ]
+
+    if end_date and cmd:
         cmd.extend(['end', end_date])
+
+    # Handle group scope specially
+    if scope == 'group':
+        # Get group members first
+        try:
+            members_cmd = [gam_cmd, 'print', 'group-members', 'group', target]
+            members_result = subprocess.run(
+                members_cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if members_result.returncode != 0:
+                error_msg = f'Failed to fetch group members: {members_result.stderr}'
+                log_error("Email Usage Report", error_msg)
+                yield {
+                    'status': 'error',
+                    'message': error_msg
+                }
+                return None
+
+            # Parse group members
+            members_reader = csv.DictReader(io.StringIO(members_result.stdout))
+            group_members = set()
+            for row in members_reader:
+                email = row.get('email', row.get('Email', ''))
+                if email:
+                    group_members.add(email.lower())
+
+            if not group_members:
+                yield {
+                    'status': 'error',
+                    'message': f'No members found in group {target}'
+                }
+                return None
+
+            yield {
+                'status': 'info',
+                'message': f'Found {len(group_members)} members in group. Fetching email usage...'
+            }
+
+            # Now get domain-wide report and filter for group members
+            cmd = [
+                gam_cmd, 'report', 'usage', 'customer',
+                'parameters', 'gmail:num_emails_sent,gmail:num_emails_received',
+                'start', start_date
+            ]
+            if end_date:
+                cmd.extend(['end', end_date])
+
+        except Exception as e:
+            error_msg = f'Error fetching group members: {str(e)}'
+            log_error("Email Usage Report", error_msg)
+            yield {
+                'status': 'error',
+                'message': error_msg
+            }
+            return None
+    else:
+        group_members = None
 
     try:
         result = subprocess.run(
@@ -455,6 +545,10 @@ def get_email_usage_report(start_date, end_date=None):
         for row in reader:
             # GAM report usage returns daily data, we need to aggregate by user
             email = row.get('email', row.get('user_email', ''))
+
+            # If group scope, filter to only group members
+            if group_members is not None and email.lower() not in group_members:
+                continue
 
             try:
                 emails_sent = int(row.get('gmail:num_emails_sent', 0) or 0)
@@ -488,15 +582,23 @@ def get_email_usage_report(start_date, end_date=None):
         total_sent = sum(u['emails_sent'] for u in report_data)
         total_received = sum(u['emails_received'] for u in report_data)
 
+        scope_detail = {
+            'all': f'{len(report_data)} users (domain-wide)',
+            'user': f'user {target}',
+            'group': f'{len(report_data)} members of group {target}'
+        }
+
         yield {
             'status': 'success',
-            'message': f'Generated email usage report for {len(report_data)} users',
+            'message': f'Generated email usage report for {scope_detail.get(scope, str(len(report_data)) + " users")}',
             'report_data': report_data,
             'summary': {
                 'total_sent': total_sent,
                 'total_received': total_received,
                 'total_emails': total_sent + total_received,
-                'total_users': len(report_data)
+                'total_users': len(report_data),
+                'scope': scope,
+                'target': target if scope in ['user', 'group'] else 'all'
             }
         }
 

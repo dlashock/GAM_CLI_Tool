@@ -275,6 +275,57 @@ class ReportsWindow(BaseOperationWindow):
         config_frame = ttk.LabelFrame(main_container, text="Report Configuration", padding="10")
         config_frame.pack(fill=tk.X, padx=5, pady=5)
 
+        # Scope selection
+        scope_frame = ttk.LabelFrame(config_frame, text="Report Scope", padding="10")
+        scope_frame.pack(fill=tk.X, pady=5)
+
+        self.email_scope_var = tk.StringVar(value="all")
+
+        scope_options_frame = ttk.Frame(scope_frame)
+        scope_options_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Radiobutton(
+            scope_options_frame,
+            text="All Users (Domain-wide)",
+            variable=self.email_scope_var,
+            value="all",
+            command=self.toggle_email_scope_fields
+        ).pack(side=tk.LEFT, padx=10)
+
+        ttk.Radiobutton(
+            scope_options_frame,
+            text="Specific User",
+            variable=self.email_scope_var,
+            value="user",
+            command=self.toggle_email_scope_fields
+        ).pack(side=tk.LEFT, padx=10)
+
+        ttk.Radiobutton(
+            scope_options_frame,
+            text="Group",
+            variable=self.email_scope_var,
+            value="group",
+            command=self.toggle_email_scope_fields
+        ).pack(side=tk.LEFT, padx=10)
+
+        # User/Group input frame
+        self.email_target_frame = ttk.Frame(scope_frame)
+        self.email_target_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(self.email_target_frame, text="Email/Group:").pack(side=tk.LEFT, padx=5)
+        self.email_target_var = tk.StringVar()
+        self.email_target_entry = ttk.Entry(self.email_target_frame, textvariable=self.email_target_var, width=40)
+        self.email_target_entry.pack(side=tk.LEFT, padx=5)
+        ttk.Label(
+            self.email_target_frame,
+            text="(e.g., user@domain.com or group@domain.com)",
+            font=('Arial', 8, 'italic'),
+            foreground='gray'
+        ).pack(side=tk.LEFT)
+
+        # Initialize visibility
+        self.toggle_email_scope_fields()
+
         # Date range selection
         date_frame = ttk.Frame(config_frame)
         date_frame.pack(fill=tk.X, pady=5)
@@ -333,6 +384,8 @@ class ReportsWindow(BaseOperationWindow):
             command=lambda: self.execute_email_usage_report(
                 date_range_var.get() if not use_custom_dates_var.get() else start_date_var.get(),
                 end_date_var.get() if use_custom_dates_var.get() else None,
+                self.email_scope_var.get(),
+                self.email_target_var.get().strip(),
                 auto_export_var.get()
             ),
             width=20
@@ -646,6 +699,27 @@ class ReportsWindow(BaseOperationWindow):
 
         self._stored_reports[report_type] = report_data
 
+    def toggle_email_scope_fields(self):
+        """Toggle visibility of email target input based on scope selection."""
+        scope = self.email_scope_var.get()
+        if scope == 'all':
+            # Hide the email/group input
+            for widget in self.email_target_frame.winfo_children():
+                widget.pack_forget()
+        else:
+            # Show the email/group input
+            for widget in self.email_target_frame.winfo_children():
+                widget.pack_forget()
+
+            ttk.Label(self.email_target_frame, text="Email/Group:").pack(side=tk.LEFT, padx=5)
+            self.email_target_entry.pack(side=tk.LEFT, padx=5)
+            ttk.Label(
+                self.email_target_frame,
+                text="(e.g., user@domain.com or group@domain.com)",
+                font=('Arial', 8, 'italic'),
+                foreground='gray'
+            ).pack(side=tk.LEFT)
+
     # Execution Methods
 
     def execute_user_activity_report(self, report_type, inactive_days, include_suspended, auto_export):
@@ -720,7 +794,7 @@ class ReportsWindow(BaseOperationWindow):
             org_unit
         )
 
-    def execute_email_usage_report(self, start_date, end_date, auto_export):
+    def execute_email_usage_report(self, start_date, end_date, scope, target, auto_export):
         """Execute email usage report generation."""
         progress_frame = self.email_usage_vars['progress_frame']
 
@@ -729,12 +803,29 @@ class ReportsWindow(BaseOperationWindow):
         progress_frame.results_text.delete("1.0", tk.END)
         progress_frame.results_text.config(state=tk.DISABLED)
 
+        # Validate scope-specific inputs
+        if scope in ['user', 'group'] and not target:
+            messagebox.showerror(
+                "Input Required",
+                f"Please enter a {'user email' if scope == 'user' else 'group email'} address."
+            )
+            return
+
         from modules.reports import get_email_usage_report
+
+        # Build confirmation message
+        scope_msg = {
+            'all': 'All Users (Domain-wide)',
+            'user': f'User: {target}',
+            'group': f'Group: {target}'
+        }
 
         # Confirmation
         confirm = messagebox.askyesno(
             "Generate Report",
-            f"Generate Email Usage Report?\n\nPeriod: {start_date} to {end_date or 'today'}"
+            f"Generate Email Usage Report?\n\n"
+            f"Scope: {scope_msg[scope]}\n"
+            f"Period: {start_date} to {end_date or 'today'}"
         )
 
         if not confirm:
@@ -748,7 +839,9 @@ class ReportsWindow(BaseOperationWindow):
             auto_export,
             'email_usage',
             start_date,
-            end_date
+            end_date,
+            scope,
+            target if scope in ['user', 'group'] else None
         )
 
     def execute_admin_audit_report(self, start_date, event_type, auto_export):
