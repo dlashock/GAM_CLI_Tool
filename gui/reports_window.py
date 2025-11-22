@@ -446,6 +446,70 @@ class ReportsWindow(BaseOperationWindow):
             'progress_frame': progress_frame
         }
 
+    # Helper Methods
+
+    def display_report_data(self, report_data, progress_frame):
+        """
+        Format and display report data in the results window.
+
+        Args:
+            report_data (dict): Report data structure with 'data' list
+            progress_frame: Progress frame containing results_text widget
+        """
+        if not report_data or 'data' not in report_data:
+            return
+
+        data = report_data['data']
+        if not data:
+            return
+
+        # Get field names from first record
+        fieldnames = list(data[0].keys())
+
+        # Format as table
+        output_lines = []
+
+        # Header row
+        header = " | ".join(str(field).ljust(20) for field in fieldnames)
+        output_lines.append(header)
+        output_lines.append("-" * len(header))
+
+        # Data rows (limit to first 100 for display)
+        for i, row in enumerate(data[:100]):
+            row_text = " | ".join(str(row.get(field, '')).ljust(20)[:20] for field in fieldnames)
+            output_lines.append(row_text)
+
+        if len(data) > 100:
+            output_lines.append(f"\n... and {len(data) - 100} more rows")
+            output_lines.append("\nUse 'Export to CSV' to save all data")
+
+        # Display summary if available
+        if 'summary' in report_data:
+            output_lines.append("\n" + "=" * 60)
+            output_lines.append("SUMMARY")
+            output_lines.append("=" * 60)
+            for key, value in report_data['summary'].items():
+                output_lines.append(f"{key}: {value}")
+
+        # Update results text
+        progress_frame.results_text.config(state=tk.NORMAL)
+        progress_frame.results_text.insert(tk.END, "\n".join(output_lines) + "\n")
+        progress_frame.results_text.config(state=tk.DISABLED)
+        progress_frame.results_text.see(tk.END)
+
+    def store_report_data(self, report_type, report_data):
+        """
+        Store report data for later export.
+
+        Args:
+            report_type (str): Type of report
+            report_data (dict): Report data structure
+        """
+        if not hasattr(self, '_stored_reports'):
+            self._stored_reports = {}
+
+        self._stored_reports[report_type] = report_data
+
     # Execution Methods
 
     def execute_user_activity_report(self, report_type, inactive_days, include_suspended, auto_export):
@@ -483,8 +547,14 @@ class ReportsWindow(BaseOperationWindow):
 
         def on_complete(result):
             """Handle report completion."""
-            if result and auto_export:
-                self.auto_export_report(result, report_type)
+            if result:
+                # Store the report data
+                self.store_report_data('user_activity', result)
+                # Display the formatted report
+                self.display_report_data(result, progress_frame)
+                # Auto-export if requested
+                if auto_export:
+                    self.auto_export_report(result, report_type)
 
         # Run operation
         self.run_operation(
@@ -516,8 +586,14 @@ class ReportsWindow(BaseOperationWindow):
 
         def on_complete(result):
             """Handle report completion."""
-            if result and auto_export:
-                self.auto_export_report(result, 'storage')
+            if result:
+                # Store the report data
+                self.store_report_data('storage', result)
+                # Display the formatted report
+                self.display_report_data(result, progress_frame)
+                # Auto-export if requested
+                if auto_export:
+                    self.auto_export_report(result, 'storage')
 
         # Run operation
         self.run_operation(
@@ -549,8 +625,14 @@ class ReportsWindow(BaseOperationWindow):
 
         def on_complete(result):
             """Handle report completion."""
-            if result and auto_export:
-                self.auto_export_report(result, 'email_usage')
+            if result:
+                # Store the report data
+                self.store_report_data('email_usage', result)
+                # Display the formatted report
+                self.display_report_data(result, progress_frame)
+                # Auto-export if requested
+                if auto_export:
+                    self.auto_export_report(result, 'email_usage')
 
         # Run operation
         self.run_operation(
@@ -583,8 +665,14 @@ class ReportsWindow(BaseOperationWindow):
 
         def on_complete(result):
             """Handle report completion."""
-            if result and auto_export:
-                self.auto_export_report(result, 'admin_audit')
+            if result:
+                # Store the report data
+                self.store_report_data('admin_audit', result)
+                # Display the formatted report
+                self.display_report_data(result, progress_frame)
+                # Auto-export if requested
+                if auto_export:
+                    self.auto_export_report(result, 'admin_audit')
 
         # Run operation
         self.run_operation(
@@ -632,24 +720,15 @@ class ReportsWindow(BaseOperationWindow):
         Args:
             report_type (str): Type of report (determines which results to export)
         """
-        # Determine which progress frame to use
-        if report_type == 'user_activity':
-            progress_frame = self.user_activity_vars['progress_frame']
-        elif report_type == 'storage':
-            progress_frame = self.storage_vars['progress_frame']
-        elif report_type == 'email_usage':
-            progress_frame = self.email_usage_vars['progress_frame']
-        elif report_type == 'admin_audit':
-            progress_frame = self.admin_audit_vars['progress_frame']
-        else:
-            messagebox.showerror("Error", "Unknown report type")
+        # Check if we have stored report data
+        if not hasattr(self, '_stored_reports') or report_type not in self._stored_reports:
+            messagebox.showinfo("No Data", "No report data available to export.\nPlease generate a report first.")
             return
 
-        # Get results text
-        results_text = progress_frame.results_text.get("1.0", tk.END).strip()
+        report_data = self._stored_reports[report_type]
 
-        if not results_text:
-            messagebox.showinfo("No Results", "No results to export")
+        if not report_data or 'data' not in report_data or not report_data['data']:
+            messagebox.showinfo("No Data", "No report data available to export.")
             return
 
         # Ask for save location
@@ -664,8 +743,17 @@ class ReportsWindow(BaseOperationWindow):
 
         if file_path:
             try:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(results_text)
-                messagebox.showinfo("Exported", f"Results exported to:\n{file_path}")
+                from modules.reports import export_report_to_csv
+                success = export_report_to_csv(report_data, file_path)
+
+                if success:
+                    messagebox.showinfo(
+                        "Export Successful",
+                        f"Report exported to:\n{file_path}\n\n"
+                        f"Total rows: {len(report_data['data'])}"
+                    )
+                else:
+                    messagebox.showerror("Export Failed", "Failed to export report to CSV")
+
             except Exception as e:
                 messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
