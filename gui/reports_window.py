@@ -190,6 +190,22 @@ class ReportsWindow(BaseOperationWindow):
         threshold_spin.pack(side=tk.LEFT, padx=5)
         ttk.Label(threshold_frame, text="% of quota").pack(side=tk.LEFT)
 
+        # Organizational Unit filter
+        ou_frame = ttk.Frame(config_frame)
+        ou_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(ou_frame, text="Filter by OU (optional):").pack(side=tk.LEFT, padx=5)
+
+        ou_var = tk.StringVar()
+        ou_entry = ttk.Entry(ou_frame, textvariable=ou_var, width=30)
+        ou_entry.pack(side=tk.LEFT, padx=5)
+        ttk.Label(
+            ou_frame,
+            text="e.g., /Students or /Staff",
+            font=('Arial', 8, 'italic'),
+            foreground='gray'
+        ).pack(side=tk.LEFT, padx=5)
+
         # Options
         options_frame = ttk.Frame(config_frame)
         options_frame.pack(fill=tk.X, pady=5)
@@ -219,6 +235,7 @@ class ReportsWindow(BaseOperationWindow):
             text="📊 Generate Report",
             command=lambda: self.execute_storage_report(
                 quota_threshold_var.get(),
+                ou_var.get().strip() or None,
                 auto_export_var.get()
             ),
             width=20
@@ -240,6 +257,7 @@ class ReportsWindow(BaseOperationWindow):
         # Store variables
         self.storage_vars = {
             'quota_threshold': quota_threshold_var,
+            'ou': ou_var,
             'auto_export': auto_export_var,
             'progress_frame': progress_frame
         }
@@ -670,7 +688,7 @@ class ReportsWindow(BaseOperationWindow):
             *args
         )
 
-    def execute_storage_report(self, quota_threshold, auto_export):
+    def execute_storage_report(self, quota_threshold, org_unit, auto_export):
         """Execute storage usage report generation."""
         progress_frame = self.storage_vars['progress_frame']
 
@@ -681,10 +699,11 @@ class ReportsWindow(BaseOperationWindow):
 
         from modules.reports import get_storage_usage_report
 
-        # Confirmation
+        # Build confirmation message
+        ou_msg = f"\nFiltering by OU: {org_unit}" if org_unit else ""
         confirm = messagebox.askyesno(
             "Generate Report",
-            "Generate Storage Usage Report?\n\nThis may take several minutes for large organizations."
+            f"Generate Storage Usage Report?{ou_msg}\n\nThis may take several minutes for large organizations."
         )
 
         if not confirm:
@@ -697,7 +716,8 @@ class ReportsWindow(BaseOperationWindow):
             'storage',
             auto_export,
             'storage',
-            quota_threshold
+            quota_threshold,
+            org_unit
         )
 
     def execute_email_usage_report(self, start_date, end_date, auto_export):

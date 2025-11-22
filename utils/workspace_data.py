@@ -29,28 +29,36 @@ _groups_cache = None
 _orgs_cache = None
 
 
-def fetch_users(force_refresh=False):
+def fetch_users(force_refresh=False, org_unit=None):
     """
     Fetch all users from Google Workspace.
 
     Args:
         force_refresh (bool): If True, bypass cache and fetch fresh data
+        org_unit (str): Optional organizational unit path to filter users (e.g., '/Students')
 
     Returns:
         list: List of user email addresses, or empty list on error
     """
     global _users_cache
 
-    # Return cached data if available and not forcing refresh
-    if _users_cache is not None and not force_refresh:
+    # Return cached data if available and not forcing refresh (only if no OU filter)
+    if _users_cache is not None and not force_refresh and org_unit is None:
         return _users_cache
 
     try:
         # Run GAM command to get all users
         # Using 'gam print users' which outputs CSV format
         gam_cmd = _get_gam_command()
+
+        # Build command with optional OU filter
+        cmd = [gam_cmd, 'print', 'users']
+        if org_unit:
+            # Add query parameter for OU filtering
+            cmd.extend(['query', f"orgUnitPath='{org_unit}'"])
+
         result = subprocess.run(
-            [gam_cmd, 'print', 'users'],
+            cmd,
             capture_output=True,
             text=True,
             timeout=60
@@ -77,8 +85,9 @@ def fetch_users(force_refresh=False):
             if email:
                 users.append(email.strip())
 
-        # Cache the results
-        _users_cache = users
+        # Cache the results (only if no OU filter was used)
+        if org_unit is None:
+            _users_cache = users
 
         return users
 

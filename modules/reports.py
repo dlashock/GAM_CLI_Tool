@@ -190,15 +190,16 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
         return None
 
 
-def get_storage_usage_report(quota_threshold_percent=80):
+def get_storage_usage_report(quota_threshold_percent=80, org_unit=None):
     """
-    Generate storage usage report for all users.
+    Generate storage usage report for all users or users in a specific OU.
 
     Fetches Drive and Gmail storage usage for all users. Useful for capacity
     planning, identifying users over quota, and optimizing storage costs.
 
     Args:
         quota_threshold_percent (int): Highlight users over this % of quota (default: 80)
+        org_unit (str): Optional organizational unit path to filter users (e.g., '/Students')
 
     Yields:
         dict: Progress updates with status, message, and optional report_data
@@ -219,12 +220,12 @@ def get_storage_usage_report(quota_threshold_percent=80):
 
     yield {
         'status': 'info',
-        'message': 'Fetching user list...'
+        'message': f'Fetching user list{" from " + org_unit if org_unit else ""}...'
     }
 
-    # First, get all users
+    # First, get all users (optionally filtered by OU)
     from utils.workspace_data import fetch_users
-    users = fetch_users()
+    users = fetch_users(org_unit=org_unit)
 
     if not users:
         yield {

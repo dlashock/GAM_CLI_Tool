@@ -67,12 +67,8 @@ class DriveWindow(BaseOperationWindow):
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="🔍 Security Scanner")
 
-        # Scrollable container for the tab
-        container, scrollable = self.create_scrollable_frame(tab)
-        container.pack(fill=tk.BOTH, expand=True)
-
         # Instructions
-        info_frame = ttk.LabelFrame(scrollable, text="About Security Scanner", padding="10")
+        info_frame = ttk.LabelFrame(tab, text="About Security Scanner", padding="10")
         info_frame.pack(fill=tk.X, padx=10, pady=5)
 
         info_text = (
@@ -90,7 +86,7 @@ class DriveWindow(BaseOperationWindow):
 
         # Target selection
         target_frame = self.create_combobox_user_target_selection_frame(
-            scrollable, 'security_scan'
+            tab, 'security_scan'
         )
         target_frame.pack(fill=tk.X, padx=10, pady=10)
 
@@ -103,7 +99,7 @@ class DriveWindow(BaseOperationWindow):
             )
 
         # Configuration
-        config_frame = ttk.LabelFrame(scrollable, text="Scan Configuration", padding="10")
+        config_frame = ttk.LabelFrame(tab, text="Scan Configuration", padding="10")
         config_frame.pack(fill=tk.X, padx=10, pady=5)
 
         # Domain input
@@ -159,7 +155,7 @@ class DriveWindow(BaseOperationWindow):
         ).pack(padx=5)
 
         # Execute buttons
-        button_frame = ttk.Frame(scrollable)
+        button_frame = ttk.Frame(tab)
         button_frame.pack(fill=tk.X, padx=10, pady=10)
 
         scan_btn = ttk.Button(
@@ -171,7 +167,7 @@ class DriveWindow(BaseOperationWindow):
         scan_btn.pack(side=tk.LEFT, padx=5)
 
         # Progress and results
-        self.security_scan_progress_frame = self.create_progress_frame(scrollable)
+        self.security_scan_progress_frame = self.create_progress_frame(tab)
         self.security_scan_progress_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     def create_file_search_tab(self):
@@ -355,27 +351,11 @@ class DriveWindow(BaseOperationWindow):
         self.ownership_dest_user_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         ttk.Label(dest_user_frame, text="(Transfer TO)", font=('Arial', 9, 'italic'), foreground='gray').pack(side=tk.LEFT, padx=5)
 
-        # Options for full drive transfer
-        full_options_frame = ttk.Frame(self.ownership_full_frame)
-        full_options_frame.pack(fill=tk.X, pady=10)
-
-        ttk.Label(full_options_frame, text="", width=15).pack(side=tk.LEFT)  # Spacer
-
-        options_inner = ttk.Frame(full_options_frame)
-        options_inner.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        self.ownership_full_send_email_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            options_inner,
-            text="Send email notification for each file (may be many emails)",
-            variable=self.ownership_full_send_email_var
-        ).pack(anchor=tk.W)
-
         # Warning for full drive transfer
         warning_frame = ttk.Frame(self.ownership_full_frame)
-        warning_frame.pack(fill=tk.X, pady=5)
+        warning_frame.pack(fill=tk.X, pady=15)
         ttk.Label(warning_frame, text="", width=15).pack(side=tk.LEFT)  # Spacer
-        warning_text = "⚠️  This will transfer ALL files owned by the source user.\nUse Preview first to see what will be transferred."
+        warning_text = "⚠️  This will transfer ALL files owned by the source user.\nUse Preview first to see what will be transferred.\n\nNote: Email notifications will NOT be sent to avoid spam."
         ttk.Label(warning_frame, text=warning_text, font=('Arial', 9), foreground='#856404').pack(side=tk.LEFT)
 
         # CSV bulk transfer frame
@@ -667,7 +647,7 @@ class DriveWindow(BaseOperationWindow):
             # Get full drive transfer data
             source_user = self.ownership_source_user_entry.get().strip()
             dest_user = self.ownership_dest_user_entry.get().strip()
-            send_email = self.ownership_full_send_email_var.get()
+            send_email = False  # Never send emails for full drive transfers to avoid spam
 
             # Validate inputs
             if not source_user:
