@@ -680,3 +680,151 @@ def get_file_info(user_email, file_id):
         error_msg = str(e)
         log_error("Get File Info", f"Exception for {file_id}: {error_msg}")
         return (False, error_msg)
+
+
+def transfer_full_drive_ownership(source_user, destination_user, send_email=False, dry_run=False):
+    """
+    Transfer ALL files owned by source user to destination user.
+
+    This function first scans all files owned by the source user, then
+    transfers ownership to the destination user. Useful when staff leave
+    or accounts need to be consolidated.
+
+    Args:
+        source_user (str): Email of the current file owner
+        destination_user (str): Email of the new file owner
+        send_email (bool): Send email notification to new owner for each file
+        dry_run (bool): Preview without executing
+
+    Yields:
+        dict: Progress updates
+
+    Returns:
+        dict: Summary with file count and transfer results
+    """
+    gam_cmd = get_gam_command()
+
+    yield {
+        'status': 'info',
+        'message': f'Scanning all files owned by {source_user}...'
+    }
+
+    # Get all files owned by source user
+    cmd = [
+        gam_cmd, 'user', source_user,
+        'print', 'filelist',
+        'allfields',
+        'query', f"'{source_user}' in owners"
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minutes for large drives
+        )
+
+        if result.returncode != 0:
+            error_msg = f'Failed to list files: {result.stderr}'
+            log_error("Full Drive Transfer", error_msg)
+            yield {
+                'status': 'error',
+                'message': error_msg
+            }
+            return None
+
+        # Parse CSV output to get file IDs
+        import csv
+        import io
+
+        reader = csv.DictReader(io.StringIO(result.stdout))
+        files = list(reader)
+
+        file_count = len(files)
+
+        if file_count == 0:
+            yield {
+                'status': 'warning',
+                'message': f'No files found owned by {source_user}'
+            }
+            return {
+                'files_found': 0,
+                'transferred': 0,
+                'failed': 0
+            }
+
+        yield {
+            'status': 'info',
+            'message': f'Found {file_count} file(s) owned by {source_user}'
+        }
+
+        # Build transfer data
+        transfer_data = []
+        for file in files:
+            file_id = file.get('id', '')
+            if file_id:
+                transfer_data.append({
+                    'file_id': file_id,
+                    'current_owner': source_user,
+                    'new_owner': destination_user,
+                    'send_email': send_email
+                })
+
+        if dry_run:
+            yield {
+                'status': 'info',
+                'message': f'\n[DRY RUN] Would transfer {len(transfer_data)} file(s):'
+            }
+            # Show first 10 files as preview
+            preview_count = min(10, len(transfer_data))
+            for i, transfer in enumerate(transfer_data[:preview_count], 1):
+                file_id = transfer['file_id']
+                yield {
+                    'status': 'info',
+                    'message': f'  {i}. File ID: {file_id}'
+                }
+            if len(transfer_data) > preview_count:
+                yield {
+                    'status': 'info',
+                    'message': f'  ... and {len(transfer_data) - preview_count} more file(s)'
+                }
+
+        # Now transfer ownership using existing function
+        yield {
+            'status': 'info',
+            'message': f'\n{"[DRY RUN] " if dry_run else ""}Transferring ownership...'
+        }
+
+        # Call the existing transfer_ownership function and pass through its progress
+        transfer_gen = transfer_ownership(transfer_data, dry_run=dry_run)
+        for progress in transfer_gen:
+            yield progress
+
+        # Final summary
+        yield {
+            'status': 'success',
+            'message': f'\nFull drive transfer {"preview" if dry_run else "completed"}!'
+        }
+
+        return {
+            'files_found': file_count,
+            'files_transferred': len(transfer_data)
+        }
+
+    except subprocess.TimeoutExpired:
+        error_msg = 'File scan timed out (5 minutes). User may have too many files.'
+        log_error("Full Drive Transfer", error_msg)
+        yield {
+            'status': 'error',
+            'message': error_msg
+        }
+        return None
+    except Exception as e:
+        error_msg = f'Exception during full drive transfer: {str(e)}'
+        log_error("Full Drive Transfer", error_msg)
+        yield {
+            'status': 'error',
+            'message': error_msg
+        }
+        return None

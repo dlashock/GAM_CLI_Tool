@@ -283,13 +283,21 @@ class DriveWindow(BaseOperationWindow):
 
         ttk.Radiobutton(
             mode_options_frame,
+            text="Full Drive Transfer",
+            variable=self.ownership_mode_var,
+            value="full",
+            command=self.update_ownership_input_mode
+        ).pack(side=tk.LEFT, padx=(0, 15))
+
+        ttk.Radiobutton(
+            mode_options_frame,
             text="Bulk Transfer (CSV)",
             variable=self.ownership_mode_var,
             value="csv",
             command=self.update_ownership_input_mode
         ).pack(side=tk.LEFT)
 
-        # Input container (will hold either single or CSV interface)
+        # Input container (will hold either single, full, or CSV interface)
         self.ownership_input_container = ttk.Frame(mode_frame)
         self.ownership_input_container.pack(fill=tk.BOTH, expand=True)
 
@@ -328,6 +336,48 @@ class DriveWindow(BaseOperationWindow):
             variable=self.ownership_send_email_var
         ).pack(side=tk.LEFT, padx=5)
 
+        # Full Drive transfer frame
+        self.ownership_full_frame = ttk.Frame(self.ownership_input_container)
+
+        # Source user (current owner)
+        source_user_frame = ttk.Frame(self.ownership_full_frame)
+        source_user_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(source_user_frame, text="Source User:", width=15).pack(side=tk.LEFT)
+        self.ownership_source_user_entry = ttk.Entry(source_user_frame, width=40)
+        self.ownership_source_user_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        ttk.Label(source_user_frame, text="(Transfer FROM)", font=('Arial', 9, 'italic'), foreground='gray').pack(side=tk.LEFT, padx=5)
+
+        # Destination user (new owner)
+        dest_user_frame = ttk.Frame(self.ownership_full_frame)
+        dest_user_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(dest_user_frame, text="Destination User:", width=15).pack(side=tk.LEFT)
+        self.ownership_dest_user_entry = ttk.Entry(dest_user_frame, width=40)
+        self.ownership_dest_user_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        ttk.Label(dest_user_frame, text="(Transfer TO)", font=('Arial', 9, 'italic'), foreground='gray').pack(side=tk.LEFT, padx=5)
+
+        # Options for full drive transfer
+        full_options_frame = ttk.Frame(self.ownership_full_frame)
+        full_options_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Label(full_options_frame, text="", width=15).pack(side=tk.LEFT)  # Spacer
+
+        options_inner = ttk.Frame(full_options_frame)
+        options_inner.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        self.ownership_full_send_email_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            options_inner,
+            text="Send email notification for each file (may be many emails)",
+            variable=self.ownership_full_send_email_var
+        ).pack(anchor=tk.W)
+
+        # Warning for full drive transfer
+        warning_frame = ttk.Frame(self.ownership_full_frame)
+        warning_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(warning_frame, text="", width=15).pack(side=tk.LEFT)  # Spacer
+        warning_text = "⚠️  This will transfer ALL files owned by the source user.\nUse Preview first to see what will be transferred."
+        ttk.Label(warning_frame, text=warning_text, font=('Arial', 9), foreground='#856404').pack(side=tk.LEFT)
+
         # CSV bulk transfer frame
         self.ownership_csv_frame = ttk.Frame(self.ownership_input_container)
 
@@ -354,7 +404,7 @@ class DriveWindow(BaseOperationWindow):
         format_text = "CSV Format: file_id, current_owner, new_owner, send_email (true/false)"
         ttk.Label(format_frame, text=format_text, font=('Arial', 9, 'italic'), foreground='gray').pack()
 
-        # Execute buttons (shared by both modes)
+        # Execute buttons (shared by all modes)
         button_frame = ttk.Frame(mode_frame)
         button_frame.pack(fill=tk.X, pady=10)
 
@@ -436,11 +486,14 @@ class DriveWindow(BaseOperationWindow):
 
         # Hide all frames first
         self.ownership_single_frame.pack_forget()
+        self.ownership_full_frame.pack_forget()
         self.ownership_csv_frame.pack_forget()
 
         # Show the appropriate frame
         if mode == "single":
             self.ownership_single_frame.pack(fill=tk.BOTH, expand=True)
+        elif mode == "full":
+            self.ownership_full_frame.pack(fill=tk.BOTH, expand=True)
         else:  # csv
             self.ownership_csv_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -557,7 +610,7 @@ class DriveWindow(BaseOperationWindow):
         )
 
     def execute_ownership_transfer(self, dry_run=False):
-        """Execute ownership transfer (single or bulk)."""
+        """Execute ownership transfer (single, full, or bulk)."""
         mode = self.ownership_mode_var.get()
 
         if mode == "single":
@@ -586,6 +639,77 @@ class DriveWindow(BaseOperationWindow):
                 'send_email': send_email
             }]
 
+            # Confirmation
+            confirm_msg = (
+                f"Transfer ownership of file:\n\n"
+                f"File ID: {transfer_data[0]['file_id']}\n"
+                f"From: {transfer_data[0]['current_owner']}\n"
+                f"To: {transfer_data[0]['new_owner']}\n"
+                f"Send notification: {'Yes' if transfer_data[0]['send_email'] else 'No'}\n\n"
+                f"{'[DRY RUN - Preview Only]' if dry_run else 'Are you sure?'}"
+            )
+
+            if not messagebox.askyesno("Confirm Transfer", confirm_msg):
+                return
+
+            # Import backend function
+            from modules.drive import transfer_ownership
+
+            # Run operation
+            self.run_operation(
+                transfer_ownership,
+                self.ownership_progress_frame,
+                transfer_data,
+                dry_run=dry_run
+            )
+
+        elif mode == "full":
+            # Get full drive transfer data
+            source_user = self.ownership_source_user_entry.get().strip()
+            dest_user = self.ownership_dest_user_entry.get().strip()
+            send_email = self.ownership_full_send_email_var.get()
+
+            # Validate inputs
+            if not source_user:
+                messagebox.showerror("Error", "Please enter the source user email")
+                return
+            if not dest_user:
+                messagebox.showerror("Error", "Please enter the destination user email")
+                return
+            if '@' not in source_user or '@' not in dest_user:
+                messagebox.showerror("Error", "Please enter valid email addresses")
+                return
+            if source_user == dest_user:
+                messagebox.showerror("Error", "Source and destination users cannot be the same")
+                return
+
+            # Strong confirmation for full drive transfer
+            confirm_msg = (
+                f"⚠️  FULL DRIVE OWNERSHIP TRANSFER  ⚠️\n\n"
+                f"This will transfer ALL files owned by:\n"
+                f"  FROM: {source_user}\n"
+                f"  TO: {dest_user}\n\n"
+                f"{'[DRY RUN - Preview Only]\n\n' if dry_run else ''}"
+                f"This may include hundreds or thousands of files!\n\n"
+                f"{'Click Yes to preview what would be transferred.' if dry_run else 'Are you absolutely sure?'}"
+            )
+
+            if not messagebox.askyesno("Confirm Full Drive Transfer", confirm_msg):
+                return
+
+            # Import backend function
+            from modules.drive import transfer_full_drive_ownership
+
+            # Run operation
+            self.run_operation(
+                transfer_full_drive_ownership,
+                self.ownership_progress_frame,
+                source_user,
+                dest_user,
+                send_email,
+                dry_run=dry_run
+            )
+
         else:  # csv mode
             # Get CSV file
             csv_path = self.ownership_csv_entry.get().strip()
@@ -611,35 +735,25 @@ class DriveWindow(BaseOperationWindow):
                 else:
                     item['send_email'] = False
 
-        # Confirmation
-        if mode == "single":
-            confirm_msg = (
-                f"Transfer ownership of file:\n\n"
-                f"File ID: {transfer_data[0]['file_id']}\n"
-                f"From: {transfer_data[0]['current_owner']}\n"
-                f"To: {transfer_data[0]['new_owner']}\n"
-                f"Send notification: {'Yes' if transfer_data[0]['send_email'] else 'No'}\n\n"
-                f"{'[DRY RUN - Preview Only]' if dry_run else 'Are you sure?'}"
-            )
-        else:
+            # Confirmation
             confirm_msg = (
                 f"Transfer ownership for {len(transfer_data)} file(s)?\n\n"
                 f"{'[DRY RUN - Preview Only]' if dry_run else 'This will update file ownership.'}"
             )
 
-        if not messagebox.askyesno("Confirm Transfer", confirm_msg):
-            return
+            if not messagebox.askyesno("Confirm Transfer", confirm_msg):
+                return
 
-        # Import backend function
-        from modules.drive import transfer_ownership
+            # Import backend function
+            from modules.drive import transfer_ownership
 
-        # Run operation
-        self.run_operation(
-            transfer_ownership,
-            self.ownership_progress_frame,
-            transfer_data,
-            dry_run=dry_run
-        )
+            # Run operation
+            self.run_operation(
+                transfer_ownership,
+                self.ownership_progress_frame,
+                transfer_data,
+                dry_run=dry_run
+            )
 
     def execute_empty_trash(self, dry_run=False):
         """Execute empty trash operation."""
