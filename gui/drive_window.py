@@ -194,31 +194,108 @@ class DriveWindow(BaseOperationWindow):
                 enable_fuzzy=True
             )
 
-        # Search query
-        query_frame = ttk.LabelFrame(tab, text="Search Query", padding="10")
-        query_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Search criteria
+        criteria_frame = ttk.LabelFrame(tab, text="Search Criteria", padding="10")
+        criteria_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        ttk.Label(query_frame, text="Query:").pack(side=tk.LEFT, padx=5)
-        self.file_search_query_entry = ttk.Entry(query_frame, width=50)
-        self.file_search_query_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-        self.file_search_query_entry.insert(0, "name contains 'budget'")
+        # File Type selection
+        type_frame = ttk.Frame(criteria_frame)
+        type_frame.pack(fill=tk.X, pady=5)
 
-        # Query examples
-        examples_frame = ttk.Frame(query_frame)
-        examples_frame.pack(fill=tk.X, pady=5)
-
-        ttk.Label(examples_frame, text="Examples:", font=('Arial', 9, 'bold')).pack(anchor=tk.W)
-        examples = [
-            "name contains 'budget'",
-            "mimeType = 'application/vnd.google-apps.spreadsheet'",
-            "modifiedTime > '2025-01-01'",
-            "trashed = true"
+        ttk.Label(type_frame, text="File Type:").pack(side=tk.LEFT, padx=5)
+        self.file_search_type_var = tk.StringVar(value="all")
+        file_types = [
+            ("All Files", "all"),
+            ("Google Docs", "document"),
+            ("Google Sheets", "spreadsheet"),
+            ("Google Slides", "presentation"),
+            ("Google Forms", "form"),
+            ("PDFs", "pdf"),
+            ("Images", "image"),
+            ("Folders", "folder")
         ]
-        for example in examples:
-            ttk.Label(examples_frame, text=f"  • {example}", font=('Arial', 8)).pack(anchor=tk.W)
+        for label, value in file_types:
+            ttk.Radiobutton(
+                type_frame,
+                text=label,
+                variable=self.file_search_type_var,
+                value=value
+            ).pack(side=tk.LEFT, padx=5)
+
+        # Name/keyword search
+        name_frame = ttk.Frame(criteria_frame)
+        name_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(name_frame, text="Name contains:").pack(side=tk.LEFT, padx=5)
+        self.file_search_name_var = tk.StringVar()
+        ttk.Entry(name_frame, textvariable=self.file_search_name_var, width=30).pack(side=tk.LEFT, padx=5)
+        ttk.Label(
+            name_frame,
+            text="(optional - leave blank to skip)",
+            font=('Arial', 8, 'italic'),
+            foreground='gray'
+        ).pack(side=tk.LEFT)
+
+        # Date filter
+        date_frame = ttk.Frame(criteria_frame)
+        date_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(date_frame, text="Modified:").pack(side=tk.LEFT, padx=5)
+        self.file_search_date_var = tk.StringVar(value="any")
+        date_options = [
+            ("Any time", "any"),
+            ("Last 7 days", "7days"),
+            ("Last 30 days", "30days"),
+            ("Last 90 days", "90days"),
+            ("This year", "year")
+        ]
+        for label, value in date_options:
+            ttk.Radiobutton(
+                date_frame,
+                text=label,
+                variable=self.file_search_date_var,
+                value=value
+            ).pack(side=tk.LEFT, padx=5)
+
+        # Special filters
+        special_frame = ttk.Frame(criteria_frame)
+        special_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(special_frame, text="Special:").pack(side=tk.LEFT, padx=5)
+        self.file_search_special_var = tk.StringVar(value="none")
+        special_options = [
+            ("None", "none"),
+            ("Trashed files", "trashed"),
+            ("Shared with me", "sharedwithme"),
+            ("Owned by me", "ownedbyme")
+        ]
+        for label, value in special_options:
+            ttk.Radiobutton(
+                special_frame,
+                text=label,
+                variable=self.file_search_special_var,
+                value=value
+            ).pack(side=tk.LEFT, padx=5)
+
+        # Preview generated query
+        preview_frame = ttk.Frame(criteria_frame)
+        preview_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(preview_frame, text="Generated Query:", font=('Arial', 9, 'bold')).pack(anchor=tk.W, padx=5)
+        self.file_search_query_preview = tk.Text(preview_frame, height=2, wrap=tk.WORD, state=tk.DISABLED)
+        self.file_search_query_preview.pack(fill=tk.X, padx=5, pady=2)
+
+        # Bind changes to update preview
+        self.file_search_type_var.trace_add('write', lambda *args: self.update_search_query_preview())
+        self.file_search_name_var.trace_add('write', lambda *args: self.update_search_query_preview())
+        self.file_search_date_var.trace_add('write', lambda *args: self.update_search_query_preview())
+        self.file_search_special_var.trace_add('write', lambda *args: self.update_search_query_preview())
+
+        # Initialize preview
+        self.update_search_query_preview()
 
         # Max results
-        max_frame = ttk.Frame(query_frame)
+        max_frame = ttk.Frame(criteria_frame)
         max_frame.pack(fill=tk.X, pady=5)
 
         ttk.Label(max_frame, text="Max results per user:").pack(side=tk.LEFT, padx=5)
@@ -233,7 +310,7 @@ class DriveWindow(BaseOperationWindow):
 
         # Execute button
         search_btn = ttk.Button(
-            query_frame,
+            criteria_frame,
             text="🔎 Search Files",
             command=self.execute_file_search,
             width=20
@@ -561,6 +638,120 @@ class DriveWindow(BaseOperationWindow):
             except Exception as e:
                 messagebox.showerror("Export Error", f"Failed to export results:\n{str(e)}")
 
+    def update_search_query_preview(self):
+        """Update the search query preview based on selected criteria."""
+        query_parts = []
+
+        # File type
+        file_type = self.file_search_type_var.get()
+        if file_type != "all":
+            mime_types = {
+                "document": "application/vnd.google-apps.document",
+                "spreadsheet": "application/vnd.google-apps.spreadsheet",
+                "presentation": "application/vnd.google-apps.presentation",
+                "form": "application/vnd.google-apps.form",
+                "pdf": "application/pdf",
+                "image": "image/",
+                "folder": "application/vnd.google-apps.folder"
+            }
+            if file_type == "image":
+                query_parts.append("mimeType contains 'image/'")
+            else:
+                query_parts.append(f"mimeType = '{mime_types[file_type]}'")
+
+        # Name filter
+        name = self.file_search_name_var.get().strip()
+        if name:
+            query_parts.append(f"name contains '{name}'")
+
+        # Date filter
+        date_filter = self.file_search_date_var.get()
+        if date_filter != "any":
+            from datetime import datetime, timedelta
+            today = datetime.now()
+            if date_filter == "7days":
+                date_str = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+            elif date_filter == "30days":
+                date_str = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+            elif date_filter == "90days":
+                date_str = (today - timedelta(days=90)).strftime("%Y-%m-%d")
+            elif date_filter == "year":
+                date_str = f"{today.year}-01-01"
+            query_parts.append(f"modifiedTime > '{date_str}'")
+
+        # Special filters
+        special = self.file_search_special_var.get()
+        if special == "trashed":
+            query_parts.append("trashed = true")
+        elif special == "sharedwithme":
+            query_parts.append("sharedWithMe = true")
+        elif special == "ownedbyme":
+            # This is handled per-user in the backend, don't add to query
+            pass
+
+        # Build final query
+        if query_parts:
+            final_query = " and ".join(query_parts)
+        else:
+            final_query = "# No filters selected - will search all files"
+
+        # Update preview
+        self.file_search_query_preview.config(state=tk.NORMAL)
+        self.file_search_query_preview.delete("1.0", tk.END)
+        self.file_search_query_preview.insert("1.0", final_query)
+        self.file_search_query_preview.config(state=tk.DISABLED)
+
+    def build_search_query(self):
+        """Build the search query from selected criteria."""
+        query_parts = []
+
+        # File type
+        file_type = self.file_search_type_var.get()
+        if file_type != "all":
+            mime_types = {
+                "document": "application/vnd.google-apps.document",
+                "spreadsheet": "application/vnd.google-apps.spreadsheet",
+                "presentation": "application/vnd.google-apps.presentation",
+                "form": "application/vnd.google-apps.form",
+                "pdf": "application/pdf",
+                "image": "image/",
+                "folder": "application/vnd.google-apps.folder"
+            }
+            if file_type == "image":
+                query_parts.append("mimeType contains 'image/'")
+            else:
+                query_parts.append(f"mimeType = '{mime_types[file_type]}'")
+
+        # Name filter
+        name = self.file_search_name_var.get().strip()
+        if name:
+            query_parts.append(f"name contains '{name}'")
+
+        # Date filter
+        date_filter = self.file_search_date_var.get()
+        if date_filter != "any":
+            from datetime import datetime, timedelta
+            today = datetime.now()
+            if date_filter == "7days":
+                date_str = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+            elif date_filter == "30days":
+                date_str = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+            elif date_filter == "90days":
+                date_str = (today - timedelta(days=90)).strftime("%Y-%m-%d")
+            elif date_filter == "year":
+                date_str = f"{today.year}-01-01"
+            query_parts.append(f"modifiedTime > '{date_str}'")
+
+        # Special filters
+        special = self.file_search_special_var.get()
+        if special == "trashed":
+            query_parts.append("trashed = true")
+        elif special == "sharedwithme":
+            query_parts.append("sharedWithMe = true")
+
+        # Build final query (return None if no filters)
+        return " and ".join(query_parts) if query_parts else None
+
     def execute_file_search(self):
         """Execute file search."""
         # Get target users
@@ -568,10 +759,14 @@ class DriveWindow(BaseOperationWindow):
         if not users:
             return
 
-        # Get query
-        query = self.file_search_query_entry.get().strip()
+        # Build query from selected criteria
+        query = self.build_search_query()
         if not query:
-            messagebox.showerror("Error", "Please enter a search query")
+            messagebox.showwarning(
+                "No Filters Selected",
+                "Please select at least one search criterion.\n\n"
+                "You can filter by file type, name, date, or special attributes."
+            )
             return
 
         # Get max results
