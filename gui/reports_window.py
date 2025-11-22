@@ -448,6 +448,124 @@ class ReportsWindow(BaseOperationWindow):
 
     # Helper Methods
 
+    def run_report_operation(self, operation_func, progress_frame, report_type, auto_export, display_type, *args):
+        """
+        Run a report operation and capture the result from progress messages.
+
+        Args:
+            operation_func: The report function to call
+            progress_frame: Progress frame for display
+            report_type: Type of report for storage
+            auto_export: Whether to auto-export
+            display_type: Type for display/export purposes
+            *args: Arguments for operation_func
+        """
+        # Clear previous results
+        progress_frame.results_text.config(state=tk.NORMAL)
+        progress_frame.results_text.delete("1.0", tk.END)
+        progress_frame.results_text.config(state=tk.DISABLED)
+
+        # Store captured data
+        self._last_report_data = None
+        self._last_report_type = report_type
+
+        # Override the progress message handler to capture report data
+        import queue
+        import threading
+
+        if self.operation_running:
+            messagebox.showwarning("Operation Running", "An operation is already in progress.")
+            return
+
+        self.operation_running = True
+        self.cancel_flag.clear()
+
+        progress_frame.progress_bar.start(10)
+        result_queue = queue.Queue()
+
+        def worker():
+            try:
+                for progress in operation_func(*args):
+                    if self.cancel_flag.is_set():
+                        result_queue.put(('cancelled', None))
+                        return
+
+                    # Capture report data from success message
+                    if progress.get('status') == 'success' and 'report_data' in progress:
+                        # Build complete report structure
+                        report_result = {
+                            'data': progress.get('report_data', []),
+                            'summary': progress.get('summary', {})
+                        }
+                        result_queue.put(('report_data', report_result))
+
+                    result_queue.put(('progress', progress))
+
+                result_queue.put(('done', None))
+            except Exception as e:
+                import traceback
+                result_queue.put(('error', f"{str(e)}\n{traceback.format_exc()}"))
+
+        # Start thread
+        self.current_thread = threading.Thread(target=worker, daemon=True)
+        self.current_thread.start()
+
+        # Start checking queue with custom handler
+        def check_report_queue():
+            try:
+                msg_type, msg_data = result_queue.get_nowait()
+
+                if msg_type == 'progress':
+                    message = msg_data.get('message', '')
+                    if message:
+                        progress_frame.results_text.config(state=tk.NORMAL)
+                        progress_frame.results_text.insert(tk.END, message + "\n")
+                        progress_frame.results_text.see(tk.END)
+                        progress_frame.results_text.config(state=tk.DISABLED)
+                    self.after(100, check_report_queue)
+
+                elif msg_type == 'report_data':
+                    # Capture the report data
+                    self._last_report_data = msg_data
+                    self.after(100, check_report_queue)
+
+                elif msg_type == 'done':
+                    progress_frame.progress_bar.stop()
+                    progress_frame.results_text.config(state=tk.NORMAL)
+                    progress_frame.results_text.insert(tk.END, "\n" + "="*50 + "\n")
+                    progress_frame.results_text.insert(tk.END, "Operation completed!\n")
+                    progress_frame.results_text.config(state=tk.DISABLED)
+                    self.operation_running = False
+
+                    # Process captured report data
+                    if self._last_report_data:
+                        self.store_report_data(report_type, self._last_report_data)
+                        self.display_report_data(self._last_report_data, progress_frame)
+                        if auto_export:
+                            self.auto_export_report(self._last_report_data, display_type)
+
+                elif msg_type == 'cancelled':
+                    progress_frame.progress_bar.stop()
+                    progress_frame.results_text.config(state=tk.NORMAL)
+                    progress_frame.results_text.insert(tk.END, "\n" + "="*50 + "\n")
+                    progress_frame.results_text.insert(tk.END, "Operation cancelled.\n")
+                    progress_frame.results_text.config(state=tk.DISABLED)
+                    self.operation_running = False
+
+                elif msg_type == 'error':
+                    progress_frame.progress_bar.stop()
+                    progress_frame.results_text.config(state=tk.NORMAL)
+                    progress_frame.results_text.insert(tk.END, f"\nERROR: {msg_data}\n")
+                    progress_frame.results_text.config(state=tk.DISABLED)
+                    self.operation_running = False
+                    messagebox.showerror("Operation Error", f"An error occurred:\n\n{msg_data}")
+
+            except queue.Empty:
+                if self.operation_running:
+                    self.after(100, check_report_queue)
+
+        check_report_queue()
+
     def display_report_data(self, report_data, progress_frame):
         """
         Format and display report data in the results window.
@@ -542,26 +660,14 @@ class ReportsWindow(BaseOperationWindow):
         if not confirm:
             return
 
-        # Store report data for later export
-        self.current_report_data = None
-
-        def on_complete(result):
-            """Handle report completion."""
-            if result:
-                # Store the report data
-                self.store_report_data('user_activity', result)
-                # Display the formatted report
-                self.display_report_data(result, progress_frame)
-                # Auto-export if requested
-                if auto_export:
-                    self.auto_export_report(result, report_type)
-
-        # Run operation
-        self.run_operation(
+        # Custom run operation with result capture
+        self.run_report_operation(
             operation_func,
             progress_frame,
-            *args,
-            on_success=on_complete
+            'user_activity',
+            auto_export,
+            report_type,
+            *args
         )
 
     def execute_storage_report(self, quota_threshold, auto_export):
@@ -584,23 +690,14 @@ class ReportsWindow(BaseOperationWindow):
         if not confirm:
             return
 
-        def on_complete(result):
-            """Handle report completion."""
-            if result:
-                # Store the report data
-                self.store_report_data('storage', result)
-                # Display the formatted report
-                self.display_report_data(result, progress_frame)
-                # Auto-export if requested
-                if auto_export:
-                    self.auto_export_report(result, 'storage')
-
-        # Run operation
-        self.run_operation(
+        # Run report operation with result capture
+        self.run_report_operation(
             get_storage_usage_report,
             progress_frame,
-            quota_threshold,
-            on_success=on_complete
+            'storage',
+            auto_export,
+            'storage',
+            quota_threshold
         )
 
     def execute_email_usage_report(self, start_date, end_date, auto_export):
@@ -623,24 +720,15 @@ class ReportsWindow(BaseOperationWindow):
         if not confirm:
             return
 
-        def on_complete(result):
-            """Handle report completion."""
-            if result:
-                # Store the report data
-                self.store_report_data('email_usage', result)
-                # Display the formatted report
-                self.display_report_data(result, progress_frame)
-                # Auto-export if requested
-                if auto_export:
-                    self.auto_export_report(result, 'email_usage')
-
-        # Run operation
-        self.run_operation(
+        # Run report operation with result capture
+        self.run_report_operation(
             get_email_usage_report,
             progress_frame,
+            'email_usage',
+            auto_export,
+            'email_usage',
             start_date,
-            end_date,
-            on_success=on_complete
+            end_date
         )
 
     def execute_admin_audit_report(self, start_date, event_type, auto_export):
@@ -663,24 +751,15 @@ class ReportsWindow(BaseOperationWindow):
         if not confirm:
             return
 
-        def on_complete(result):
-            """Handle report completion."""
-            if result:
-                # Store the report data
-                self.store_report_data('admin_audit', result)
-                # Display the formatted report
-                self.display_report_data(result, progress_frame)
-                # Auto-export if requested
-                if auto_export:
-                    self.auto_export_report(result, 'admin_audit')
-
-        # Run operation
-        self.run_operation(
+        # Run report operation with result capture
+        self.run_report_operation(
             get_admin_activity_report,
             progress_frame,
+            'admin_audit',
+            auto_export,
+            'admin_audit',
             start_date,
-            event_type,
-            on_success=on_complete
+            event_type
         )
 
     def auto_export_report(self, report_data, report_type):
