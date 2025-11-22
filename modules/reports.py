@@ -9,7 +9,7 @@ import subprocess
 import csv
 import io
 from datetime import datetime, timedelta
-from utils.gam_check import get_gam_command
+from modules.base_operations import get_gam_command
 from utils.logger import log_error
 
 
