@@ -218,127 +218,171 @@ def get_storage_usage_report(quota_threshold_percent=80):
 
     yield {
         'status': 'info',
-        'message': 'Fetching storage usage data...'
+        'message': 'Fetching user list...'
     }
 
-    # Get usage report from GAM
-    # Note: GAM report usage customer may not return per-user data in all versions
-    # We'll use 'gam print users' with quota fields instead
-    cmd = [
-        gam_cmd, 'print', 'users',
-        'fields', 'primaryEmail,quotaBytesTotal,quotaBytesUsed'
-    ]
+    # First, get all users
+    from utils.workspace_data import fetch_users
+    users = fetch_users()
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=180
-        )
+    if not users:
+        yield {
+            'status': 'error',
+            'message': 'Failed to fetch users'
+        }
+        return None
 
-        if result.returncode != 0:
-            error_msg = f'Failed to fetch storage report: {result.stderr}'
-            log_error("Storage Usage Report", error_msg)
-            yield {
-                'status': 'error',
-                'message': error_msg
-            }
-            return None
+    total_users = len(users)
+    yield {
+        'status': 'info',
+        'message': f'Fetching storage quota for {total_users} users...'
+    }
 
-        # Parse CSV
-        reader = csv.DictReader(io.StringIO(result.stdout))
-        report_data = []
+    report_data = []
 
-        for row in reader:
-            email = row.get('primaryEmail', '')
+    # Fetch storage quota for each user
+    for i, user_email in enumerate(users, 1):
+        yield {
+            'status': 'processing',
+            'current': i,
+            'total': total_users,
+            'message': f'Fetching quota for {user_email}...'
+        }
 
-            # GAM returns quota in bytes
-            try:
-                total_quota_bytes = int(row.get('quotaBytesTotal', 0) or 0)
-                used_quota_bytes = int(row.get('quotaBytesUsed', 0) or 0)
-            except (ValueError, TypeError):
-                total_quota_bytes = 0
-                used_quota_bytes = 0
+        # Use GAM to get user's Drive quota
+        cmd = [
+            gam_cmd, 'user', user_email,
+            'show', 'filequota'
+        ]
 
-            # Convert bytes to GB
-            bytes_per_gb = 1024 * 1024 * 1024
-            total_quota_gb = round(total_quota_bytes / bytes_per_gb, 2)
-            used_quota_gb = round(used_quota_bytes / bytes_per_gb, 2)
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
 
-            # Calculate percentage
-            if total_quota_gb > 0:
-                percent_used = round((used_quota_gb / total_quota_gb) * 100, 1)
+            if result.returncode == 0:
+                # Parse the output to extract quota information
+                output = result.stdout
+
+                # GAM output format example:
+                # User: user@domain.com
+                # Usage: 1234567890 bytes
+                # Limit: 15728640000 bytes
+
+                used_bytes = 0
+                total_bytes = 0
+
+                for line in output.split('\n'):
+                    line = line.strip()
+                    if 'Usage:' in line:
+                        # Extract bytes value
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            try:
+                                used_bytes = int(parts[1])
+                            except (ValueError, IndexError):
+                                pass
+                    elif 'Limit:' in line:
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            try:
+                                total_bytes = int(parts[1])
+                            except (ValueError, IndexError):
+                                pass
+
+                # Convert bytes to GB
+                bytes_per_gb = 1024 * 1024 * 1024
+                total_quota_gb = round(total_bytes / bytes_per_gb, 2) if total_bytes > 0 else 0
+                used_quota_gb = round(used_bytes / bytes_per_gb, 2)
+
+                # Calculate percentage
+                if total_quota_gb > 0:
+                    percent_used = round((used_quota_gb / total_quota_gb) * 100, 1)
+                else:
+                    percent_used = 0
+
+                # Flag if over threshold
+                over_threshold = percent_used >= quota_threshold_percent
+
+                report_data.append({
+                    'email': user_email,
+                    'total_quota_gb': total_quota_gb,
+                    'used_quota_gb': used_quota_gb,
+                    'percent_used': percent_used,
+                    'over_threshold': over_threshold
+                })
             else:
-                percent_used = 0
+                # If command fails, add user with unknown quota
+                report_data.append({
+                    'email': user_email,
+                    'total_quota_gb': 0,
+                    'used_quota_gb': 0,
+                    'percent_used': 0,
+                    'over_threshold': False
+                })
 
-            # Flag if over threshold
-            over_threshold = percent_used >= quota_threshold_percent
-
+        except subprocess.TimeoutExpired:
+            log_error("Storage Usage Report", f"Timeout fetching quota for {user_email}")
+            # Add with unknown quota
             report_data.append({
-                'email': email,
-                'total_quota_gb': total_quota_gb,
-                'used_quota_gb': used_quota_gb,
-                'percent_used': percent_used,
-                'over_threshold': over_threshold
+                'email': user_email,
+                'total_quota_gb': 0,
+                'used_quota_gb': 0,
+                'percent_used': 0,
+                'over_threshold': False
+            })
+        except Exception as e:
+            log_error("Storage Usage Report", f"Error fetching quota for {user_email}: {str(e)}")
+            # Add with unknown quota
+            report_data.append({
+                'email': user_email,
+                'total_quota_gb': 0,
+                'used_quota_gb': 0,
+                'percent_used': 0,
+                'over_threshold': False
             })
 
-        # Sort by percent_used (highest first)
-        report_data.sort(key=lambda x: x['percent_used'], reverse=True)
+    # Sort by percent_used (highest first)
+    report_data.sort(key=lambda x: x['percent_used'], reverse=True)
 
-        # Calculate summary statistics
-        total_users = len(report_data)
-        users_over_threshold = sum(1 for u in report_data if u['over_threshold'])
-        total_storage_used = sum(u['used_quota_gb'] for u in report_data)
-        total_storage_quota = sum(u['total_quota_gb'] for u in report_data)
+    # Calculate summary statistics
+    users_over_threshold = sum(1 for u in report_data if u['over_threshold'])
+    total_storage_used = sum(u['used_quota_gb'] for u in report_data)
+    total_storage_quota = sum(u['total_quota_gb'] for u in report_data)
 
-        avg_usage_percent = (
-            round((total_storage_used / total_storage_quota) * 100, 1)
-            if total_storage_quota > 0 else 0
-        )
+    avg_usage_percent = (
+        round((total_storage_used / total_storage_quota) * 100, 1)
+        if total_storage_quota > 0 else 0
+    )
 
-        yield {
-            'status': 'success',
-            'message': f'Generated storage report for {total_users} users',
-            'report_data': report_data,
-            'summary': {
-                'total_users': total_users,
-                'users_over_threshold': users_over_threshold,
-                'total_storage_used_gb': round(total_storage_used, 2),
-                'total_storage_quota_gb': round(total_storage_quota, 2),
-                'avg_usage_percent': avg_usage_percent
-            }
-        }
-
-        return {
-            'report_type': 'storage_usage',
-            'date_generated': datetime.now().isoformat(),
+    yield {
+        'status': 'success',
+        'message': f'Generated storage report for {total_users} users',
+        'report_data': report_data,
+        'summary': {
             'total_users': total_users,
-            'data': report_data,
-            'summary': {
-                'users_over_threshold': users_over_threshold,
-                'total_storage_used_gb': round(total_storage_used, 2),
-                'total_storage_quota_gb': round(total_storage_quota, 2),
-                'avg_usage_percent': avg_usage_percent
-            }
+            'users_over_threshold': users_over_threshold,
+            'total_storage_used_gb': round(total_storage_used, 2),
+            'total_storage_quota_gb': round(total_storage_quota, 2),
+            'avg_usage_percent': avg_usage_percent
         }
+    }
 
-    except subprocess.TimeoutExpired:
-        error_msg = 'Report generation timed out (180 seconds)'
-        log_error("Storage Usage Report", error_msg)
-        yield {
-            'status': 'error',
-            'message': error_msg
+    return {
+        'report_type': 'storage_usage',
+        'date_generated': datetime.now().isoformat(),
+        'total_users': total_users,
+        'data': report_data,
+        'summary': {
+            'users_over_threshold': users_over_threshold,
+            'total_storage_used_gb': round(total_storage_used, 2),
+            'total_storage_quota_gb': round(total_storage_quota, 2),
+            'avg_usage_percent': avg_usage_percent
         }
-        return None
-    except Exception as e:
-        error_msg = f'Exception generating report: {str(e)}'
-        log_error("Storage Usage Report", error_msg)
-        yield {
-            'status': 'error',
-            'message': error_msg
-        }
-        return None
+    }
 
 
 def get_email_usage_report(start_date, end_date=None):
