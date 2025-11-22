@@ -694,20 +694,68 @@ def get_admin_activity_report(start_date='-30d', event_type='all'):
         # Parse CSV
         reader = csv.DictReader(io.StringIO(result.stdout))
         report_data = []
+        first_row_fields = None
 
-        for row in reader:
-            # GAM admin report fields vary, extract what's available
-            admin_email = row.get('actor.email', row.get('admin_email', ''))
-            event_name = row.get('events.name', row.get('event_name', ''))
-            event_type_val = row.get('events.type', row.get('event_type', ''))
-            timestamp = row.get('id.time', row.get('time', ''))
+        for i, row in enumerate(reader):
+            # Debug: Capture field names from first row
+            if i == 0 and not first_row_fields:
+                first_row_fields = list(row.keys())
+                yield {
+                    'status': 'info',
+                    'message': f'CSV fields available: {", ".join(first_row_fields)}'
+                }
 
-            # Extract parameters/details if available
+            # GAM admin report fields - try multiple possible field names
+            # Admin/Actor email
+            admin_email = (row.get('admin', '') or
+                          row.get('actor', '') or
+                          row.get('actor_email', '') or
+                          row.get('email', '') or
+                          row.get('Admin', ''))
+
+            # Event name
+            event_name = (row.get('event', '') or
+                         row.get('event_name', '') or
+                         row.get('eventName', '') or
+                         row.get('Event', ''))
+
+            # Event type
+            event_type_val = (row.get('type', '') or
+                             row.get('event_type', '') or
+                             row.get('eventType', '') or
+                             row.get('Type', ''))
+
+            # Timestamp
+            timestamp = (row.get('time', '') or
+                        row.get('timestamp', '') or
+                        row.get('date', '') or
+                        row.get('Time', ''))
+
+            # Extract all other fields as details (excluding the main ones)
+            excluded_keys = {'admin', 'actor', 'actor_email', 'email', 'Admin',
+                           'event', 'event_name', 'eventName', 'Event',
+                           'type', 'event_type', 'eventType', 'Type',
+                           'time', 'timestamp', 'date', 'Time'}
+
             parameters = []
             for key, value in row.items():
-                if key.startswith('events.parameters'):
-                    parameters.append(f"{key.split('.')[-1]}={value}")
+                if key not in excluded_keys and value:  # Only include non-empty values
+                    parameters.append(f"{key}={value}")
             details = ', '.join(parameters) if parameters else ''
+
+            # If all main fields are empty, show all row data in details as fallback
+            if not admin_email and not event_name and not event_type_val:
+                all_data = []
+                for key, value in row.items():
+                    if value:
+                        all_data.append(f"{key}={value}")
+                if all_data:
+                    details = ', '.join(all_data)
+                    # Try to extract any email-like value for admin field
+                    for key, value in row.items():
+                        if 'email' in key.lower() or '@' in str(value):
+                            admin_email = value
+                            break
 
             report_data.append({
                 'admin': admin_email,
