@@ -60,10 +60,11 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
         'message': f'Fetching login activity for {len(users)} users...'
     }
 
-    # Get login activity using GAM report
+    # Get login activity using GAM print users
+    # Note: We need lastLoginTime field which shows when user last logged in
     cmd = [
-        gam_cmd, 'report', 'users',
-        'fields', 'email,accounts:last_login_time'
+        gam_cmd, 'print', 'users',
+        'fields', 'primaryemail,lastlogintime'
     ]
 
     try:
@@ -75,7 +76,7 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
         )
 
         if result.returncode != 0:
-            error_msg = f'Failed to fetch login report: {result.stderr}'
+            error_msg = f'Failed to fetch login data: {result.stderr}'
             log_error("Login Activity Report", error_msg)
             yield {
                 'status': 'error',
@@ -88,8 +89,8 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
         report_data = []
 
         for row in reader:
-            email = row.get('email', '')
-            last_login_str = row.get('accounts:last_login_time', '')
+            email = row.get('primaryEmail', row.get('email', ''))
+            last_login_str = row.get('lastLoginTime', '')
 
             # Parse last login time
             if last_login_str and last_login_str not in ['Never logged in', 'Never', '']:
