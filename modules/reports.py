@@ -63,7 +63,6 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
     # Get login activity using GAM report
     cmd = [
         gam_cmd, 'report', 'users',
-        'parameters', 'accounts:last_login_time',
         'fields', 'email,accounts:last_login_time'
     ]
 
