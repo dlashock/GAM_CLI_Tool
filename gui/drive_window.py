@@ -258,20 +258,84 @@ class DriveWindow(BaseOperationWindow):
         info_frame.pack(fill=tk.X, padx=10, pady=5)
 
         info_text = (
-            "Transfer ownership of Drive files in bulk.\n"
-            "Use this when staff leave or files need to be reassigned.\n\n"
-            "CSV Format: file_id, current_owner, new_owner, send_email"
+            "Transfer ownership of Drive files.\n"
+            "Use this when staff leave or files need to be reassigned."
         )
         ttk.Label(info_frame, text=info_text).pack()
 
-        # CSV file selection
-        csv_frame = ttk.LabelFrame(tab, text="CSV File", padding="10")
-        csv_frame.pack(fill=tk.X, padx=10, pady=10)
+        # Mode selection frame
+        mode_frame = ttk.LabelFrame(tab, text="Transfer Mode", padding="10")
+        mode_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        csv_input_frame = ttk.Frame(csv_frame)
-        csv_input_frame.pack(fill=tk.X)
+        # Mode variable
+        self.ownership_mode_var = tk.StringVar(value="single")
 
-        self.ownership_csv_entry = ttk.Entry(csv_input_frame, width=50)
+        mode_options_frame = ttk.Frame(mode_frame)
+        mode_options_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Radiobutton(
+            mode_options_frame,
+            text="Single File Transfer",
+            variable=self.ownership_mode_var,
+            value="single",
+            command=self.update_ownership_input_mode
+        ).pack(side=tk.LEFT, padx=(0, 15))
+
+        ttk.Radiobutton(
+            mode_options_frame,
+            text="Bulk Transfer (CSV)",
+            variable=self.ownership_mode_var,
+            value="csv",
+            command=self.update_ownership_input_mode
+        ).pack(side=tk.LEFT)
+
+        # Input container (will hold either single or CSV interface)
+        self.ownership_input_container = ttk.Frame(mode_frame)
+        self.ownership_input_container.pack(fill=tk.BOTH, expand=True)
+
+        # Single file transfer frame
+        self.ownership_single_frame = ttk.Frame(self.ownership_input_container)
+
+        # File ID
+        file_id_frame = ttk.Frame(self.ownership_single_frame)
+        file_id_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(file_id_frame, text="File ID:", width=15).pack(side=tk.LEFT)
+        self.ownership_file_id_entry = ttk.Entry(file_id_frame, width=40)
+        self.ownership_file_id_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Current owner
+        current_owner_frame = ttk.Frame(self.ownership_single_frame)
+        current_owner_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(current_owner_frame, text="Current Owner:", width=15).pack(side=tk.LEFT)
+        self.ownership_current_owner_entry = ttk.Entry(current_owner_frame, width=40)
+        self.ownership_current_owner_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # New owner
+        new_owner_frame = ttk.Frame(self.ownership_single_frame)
+        new_owner_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(new_owner_frame, text="New Owner:", width=15).pack(side=tk.LEFT)
+        self.ownership_new_owner_entry = ttk.Entry(new_owner_frame, width=40)
+        self.ownership_new_owner_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Send email option
+        email_frame = ttk.Frame(self.ownership_single_frame)
+        email_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(email_frame, text="", width=15).pack(side=tk.LEFT)  # Spacer
+        self.ownership_send_email_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            email_frame,
+            text="Send email notification to new owner",
+            variable=self.ownership_send_email_var
+        ).pack(side=tk.LEFT, padx=5)
+
+        # CSV bulk transfer frame
+        self.ownership_csv_frame = ttk.Frame(self.ownership_input_container)
+
+        csv_input_frame = ttk.Frame(self.ownership_csv_frame)
+        csv_input_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(csv_input_frame, text="CSV File:", width=15).pack(side=tk.LEFT)
+        self.ownership_csv_entry = ttk.Entry(csv_input_frame, width=40)
         self.ownership_csv_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
         ttk.Button(
@@ -284,14 +348,14 @@ class DriveWindow(BaseOperationWindow):
         ).pack(side=tk.LEFT, padx=5)
 
         # CSV format help
-        format_frame = ttk.Frame(csv_frame)
+        format_frame = ttk.Frame(self.ownership_csv_frame)
         format_frame.pack(fill=tk.X, pady=5)
 
-        format_text = "CSV must have columns: file_id, current_owner, new_owner, send_email (true/false)"
-        ttk.Label(format_frame, text=format_text, font=('Arial', 8)).pack()
+        format_text = "CSV Format: file_id, current_owner, new_owner, send_email (true/false)"
+        ttk.Label(format_frame, text=format_text, font=('Arial', 9, 'italic'), foreground='gray').pack()
 
-        # Preview and execute buttons
-        button_frame = ttk.Frame(csv_frame)
+        # Execute buttons (shared by both modes)
+        button_frame = ttk.Frame(mode_frame)
         button_frame.pack(fill=tk.X, pady=10)
 
         ttk.Button(
@@ -311,6 +375,9 @@ class DriveWindow(BaseOperationWindow):
         # Progress and results
         self.ownership_progress_frame = self.create_progress_frame(tab)
         self.ownership_progress_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Show initial mode (single)
+        self.update_ownership_input_mode()
 
     def create_cleanup_tab(self):
         """Create Drive Cleanup tab."""
@@ -360,6 +427,22 @@ class DriveWindow(BaseOperationWindow):
         # Progress and results
         self.cleanup_progress_frame = self.create_progress_frame(tab)
         self.cleanup_progress_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    # ==================== HELPER METHODS ====================
+
+    def update_ownership_input_mode(self):
+        """Update the ownership transfer input UI based on selected mode."""
+        mode = self.ownership_mode_var.get()
+
+        # Hide all frames first
+        self.ownership_single_frame.pack_forget()
+        self.ownership_csv_frame.pack_forget()
+
+        # Show the appropriate frame
+        if mode == "single":
+            self.ownership_single_frame.pack(fill=tk.BOTH, expand=True)
+        else:  # csv
+            self.ownership_csv_frame.pack(fill=tk.BOTH, expand=True)
 
     # ==================== EXECUTION METHODS ====================
 
@@ -474,30 +557,78 @@ class DriveWindow(BaseOperationWindow):
         )
 
     def execute_ownership_transfer(self, dry_run=False):
-        """Execute ownership transfer from CSV."""
-        # Get CSV file
-        csv_path = self.ownership_csv_entry.get().strip()
-        if not csv_path:
-            messagebox.showerror("Error", "Please select a CSV file")
+        """Execute ownership transfer (single or bulk)."""
+        mode = self.ownership_mode_var.get()
+
+        if mode == "single":
+            # Get single file transfer data
+            file_id = self.ownership_file_id_entry.get().strip()
+            current_owner = self.ownership_current_owner_entry.get().strip()
+            new_owner = self.ownership_new_owner_entry.get().strip()
+            send_email = self.ownership_send_email_var.get()
+
+            # Validate inputs
+            if not file_id:
+                messagebox.showerror("Error", "Please enter a File ID")
+                return
+            if not current_owner:
+                messagebox.showerror("Error", "Please enter the current owner email")
+                return
+            if not new_owner:
+                messagebox.showerror("Error", "Please enter the new owner email")
+                return
+
+            # Create transfer data
+            transfer_data = [{
+                'file_id': file_id,
+                'current_owner': current_owner,
+                'new_owner': new_owner,
+                'send_email': send_email
+            }]
+
+        else:  # csv mode
+            # Get CSV file
+            csv_path = self.ownership_csv_entry.get().strip()
+            if not csv_path:
+                messagebox.showerror("Error", "Please select a CSV file")
+                return
+
+            # Read and validate CSV
+            transfer_data = self.read_and_validate_csv(
+                csv_path,
+                ['file_id', 'current_owner', 'new_owner'],
+                'transfer file ownership'
+            )
+
+            if not transfer_data:
+                return
+
+            # Convert send_email to boolean if present
+            for item in transfer_data:
+                if 'send_email' in item:
+                    send_val = item['send_email'].lower()
+                    item['send_email'] = send_val in ['true', '1', 'yes']
+                else:
+                    item['send_email'] = False
+
+        # Confirmation
+        if mode == "single":
+            confirm_msg = (
+                f"Transfer ownership of file:\n\n"
+                f"File ID: {transfer_data[0]['file_id']}\n"
+                f"From: {transfer_data[0]['current_owner']}\n"
+                f"To: {transfer_data[0]['new_owner']}\n"
+                f"Send notification: {'Yes' if transfer_data[0]['send_email'] else 'No'}\n\n"
+                f"{'[DRY RUN - Preview Only]' if dry_run else 'Are you sure?'}"
+            )
+        else:
+            confirm_msg = (
+                f"Transfer ownership for {len(transfer_data)} file(s)?\n\n"
+                f"{'[DRY RUN - Preview Only]' if dry_run else 'This will update file ownership.'}"
+            )
+
+        if not messagebox.askyesno("Confirm Transfer", confirm_msg):
             return
-
-        # Read and validate CSV
-        transfer_data = self.read_and_validate_csv(
-            csv_path,
-            ['file_id', 'current_owner', 'new_owner'],
-            'transfer file ownership'
-        )
-
-        if not transfer_data:
-            return
-
-        # Convert send_email to boolean if present
-        for item in transfer_data:
-            if 'send_email' in item:
-                send_val = item['send_email'].lower()
-                item['send_email'] = send_val in ['true', '1', 'yes']
-            else:
-                item['send_email'] = False
 
         # Import backend function
         from modules.drive import transfer_ownership
