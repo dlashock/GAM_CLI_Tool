@@ -611,6 +611,11 @@ class ReportsWindow(BaseOperationWindow):
         self.cancel_flag.clear()
 
         progress_frame.progress_bar.start(10)
+
+        # Show stop button
+        if hasattr(progress_frame, 'stop_btn'):
+            progress_frame.stop_btn.pack(side=tk.LEFT, padx=(0, 5))
+
         result_queue = queue.Queue()
 
         def worker():
@@ -667,6 +672,10 @@ class ReportsWindow(BaseOperationWindow):
                     progress_frame.results_text.config(state=tk.DISABLED)
                     self.operation_running = False
 
+                    # Hide stop button
+                    if hasattr(progress_frame, 'stop_btn'):
+                        progress_frame.stop_btn.pack_forget()
+
                     # Process captured report data
                     if self._last_report_data:
                         self.store_report_data(report_type, self._last_report_data)
@@ -682,12 +691,21 @@ class ReportsWindow(BaseOperationWindow):
                     progress_frame.results_text.config(state=tk.DISABLED)
                     self.operation_running = False
 
+                    # Hide stop button
+                    if hasattr(progress_frame, 'stop_btn'):
+                        progress_frame.stop_btn.pack_forget()
+
                 elif msg_type == 'error':
                     progress_frame.progress_bar.stop()
                     progress_frame.results_text.config(state=tk.NORMAL)
                     progress_frame.results_text.insert(tk.END, f"\nERROR: {msg_data}\n")
                     progress_frame.results_text.config(state=tk.DISABLED)
                     self.operation_running = False
+
+                    # Hide stop button
+                    if hasattr(progress_frame, 'stop_btn'):
+                        progress_frame.stop_btn.pack_forget()
+
                     messagebox.showerror("Operation Error", f"An error occurred:\n\n{msg_data}")
 
             except queue.Empty:
