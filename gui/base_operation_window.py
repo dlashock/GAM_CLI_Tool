@@ -1021,6 +1021,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         """
         def on_keyrelease(event):
             """Filter combobox values based on typed text."""
+            # Skip navigation and special keys
+            if event.keysym in ('Up', 'Down', 'Return', 'Escape', 'Tab', 'Left', 'Right'):
+                return
+
             typed = combobox.get().lower()
 
             if not typed:
@@ -1042,14 +1046,34 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             # Update combobox with filtered values
             combobox['values'] = filtered
 
-            # Open dropdown if there are matches, but keep focus on entry
-            if filtered and not event.keysym in ('Up', 'Down', 'Return', 'Escape'):
-                combobox.event_generate('<Down>')
-                # Immediately restore focus to the entry field
-                combobox.focus_set()
+            # Only show dropdown if user has typed 3+ characters (helps with Windows focus issues)
+            if filtered and len(typed) >= 3:
+                # Use after_idle to prevent focus loss on Windows
+                self.after_idle(lambda: self._show_combobox_dropdown(combobox))
 
         # Bind the keyrelease event
         combobox.bind('<KeyRelease>', on_keyrelease)
+
+    def _show_combobox_dropdown(self, combobox):
+        """
+        Safely show combobox dropdown without losing focus.
+
+        Args:
+            combobox: The combobox widget
+        """
+        try:
+            # Store current cursor position
+            cursor_pos = combobox.index(tk.INSERT)
+
+            # Show dropdown
+            combobox.event_generate('<Down>')
+
+            # Restore focus and cursor position
+            combobox.focus_set()
+            combobox.icursor(cursor_pos)
+        except:
+            # If any error occurs, just ensure focus is maintained
+            combobox.focus_set()
 
     def get_target_users(self, tab_id):
         """
@@ -1637,10 +1661,16 @@ class BaseOperationWindow(tk.Toplevel, ABC):
 
         def on_keyrelease(event):
             """Handle key release events for fuzzy filtering."""
-            if event.keysym in ('Up', 'Down', 'Return', 'Escape', 'Tab'):
+            # Skip navigation and special keys
+            if event.keysym in ('Up', 'Down', 'Return', 'Escape', 'Tab', 'Left', 'Right'):
                 return
 
             typed = combobox.get().lower()
+
+            # Restore all values if empty
+            if not typed:
+                combobox['values'] = combobox._all_values
+                return
 
             # Filter values
             filtered = [item for item in combobox._all_values if typed in item.lower()]
@@ -1648,10 +1678,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             # Update combobox values
             combobox['values'] = filtered
 
-            # Show dropdown if there are matches
-            if filtered:
-                combobox.event_generate('<Down>')
-                combobox.focus_set()  # Keep focus on text entry
+            # Only show dropdown if user has typed 3+ characters (helps with Windows focus issues)
+            if filtered and len(typed) >= 3:
+                # Use after_idle to prevent focus loss on Windows
+                self.after_idle(lambda: self._show_combobox_dropdown(combobox))
 
         # Bind the event
         combobox.bind('<KeyRelease>', on_keyrelease)
