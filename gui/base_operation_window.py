@@ -1286,6 +1286,16 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill=tk.X, pady=(10, 0))
 
+        # Stop button (initially hidden)
+        stop_btn = ttk.Button(
+            btn_frame,
+            text="⏹ Stop",
+            command=self.cancel_operation,
+            style='Accent.TButton'
+        )
+        stop_btn.pack(side=tk.LEFT, padx=(0, 5))
+        stop_btn.pack_forget()  # Hide initially
+
         clear_btn = ttk.Button(btn_frame, text="Clear Results",
                               command=lambda: self.clear_results(frame))
         clear_btn.pack(side=tk.LEFT, padx=(0, 5))
@@ -1293,6 +1303,9 @@ class BaseOperationWindow(tk.Toplevel, ABC):
         log_btn = ttk.Button(btn_frame, text="View Error Log",
                             command=self.view_error_log)
         log_btn.pack(side=tk.LEFT)
+
+        # Store button reference
+        frame.stop_btn = stop_btn
 
         return frame
 
@@ -1357,6 +1370,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
             progress_frame.results_text.insert(tk.END, "="*50 + "\n\n")
 
         progress_frame.progress_bar.start(10)
+
+        # Show stop button
+        if hasattr(progress_frame, 'stop_btn'):
+            progress_frame.stop_btn.pack(side=tk.LEFT, padx=(0, 5))
 
         # Create queue for communication
         result_queue = queue.Queue()
@@ -1425,6 +1442,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                 progress_frame.results_text.config(state=tk.DISABLED)
                 self.operation_running = False
 
+                # Hide stop button
+                if hasattr(progress_frame, 'stop_btn'):
+                    progress_frame.stop_btn.pack_forget()
+
                 # Call success callback if provided
                 if on_success:
                     on_success()
@@ -1438,6 +1459,10 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                 progress_frame.results_text.config(state=tk.DISABLED)
                 self.operation_running = False
 
+                # Hide stop button
+                if hasattr(progress_frame, 'stop_btn'):
+                    progress_frame.stop_btn.pack_forget()
+
             elif msg_type == 'error':
                 # Operation error
                 progress_frame.progress_bar.stop()
@@ -1445,6 +1470,11 @@ class BaseOperationWindow(tk.Toplevel, ABC):
                 progress_frame.results_text.insert(tk.END, f"\nERROR: {msg_data}\n")
                 progress_frame.results_text.config(state=tk.DISABLED)
                 self.operation_running = False
+
+                # Hide stop button
+                if hasattr(progress_frame, 'stop_btn'):
+                    progress_frame.stop_btn.pack_forget()
+
                 messagebox.showerror("Operation Error", f"An error occurred: {msg_data}")
 
         except queue.Empty:
