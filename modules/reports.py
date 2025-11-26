@@ -475,11 +475,12 @@ def get_email_usage_report(start_date, end_date=None, scope='all', target=None):
 
     # Build GAM command based on scope
     if scope == 'user':
-        # For a specific user, use user-level report
-        # Note: GAM syntax is "report usage user <email>" not "user <email> report usage"
+        # For a specific user, get domain report and filter by user
+        # GAM doesn't support per-user usage reports directly, so we get all and filter
         cmd = [
-            gam_cmd, 'report', 'usage', 'user', target,
+            gam_cmd, 'report', 'usage', 'customer',
             'parameters', 'gmail:num_emails_sent,gmail:num_emails_received',
+            'filters', f'accounts:user_email=={target}',
             'start', start_date
         ]
     elif scope == 'group':
@@ -716,9 +717,11 @@ def get_admin_activity_report(start_date='-30d', event_type='all'):
         'start', start_date
     ]
 
-    if event_type != 'all':
-        # GAM expects event types in uppercase (e.g., USER_SETTINGS not user_settings)
-        cmd.extend(['event', event_type.upper()])
+    # Note: GAM doesn't support filtering by event type categories like USER_SETTINGS, GROUP_SETTINGS, etc.
+    # These categories don't exist in GAM's event manifest.
+    # The 'event' parameter expects specific event names like CREATE_USER, DELETE_GROUP, etc.
+    # For now, we'll retrieve all events and let users filter the exported CSV.
+    # The event_type parameter is kept in the function signature for potential future use.
 
     try:
         result = subprocess.run(

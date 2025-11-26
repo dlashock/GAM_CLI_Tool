@@ -508,22 +508,16 @@ class ReportsWindow(BaseOperationWindow):
         event_frame = ttk.Frame(config_frame)
         event_frame.pack(fill=tk.X, pady=5)
 
-        ttk.Label(event_frame, text="Event Type:").pack(side=tk.LEFT, padx=5)
-
+        # Note: Event type filtering removed as GAM doesn't support category-based filtering
+        # Event type dropdown hidden - all events will be retrieved
+        # Users can filter the exported CSV by event type if needed
         event_type_var = tk.StringVar(value="all")
-        event_combo = ttk.Combobox(
-            event_frame,
-            textvariable=event_type_var,
-            values=["all", "user_settings", "group_settings", "domain_settings", "mobile_settings"],
-            width=20,
-            state='readonly'
-        )
-        event_combo.pack(side=tk.LEFT, padx=5)
+        # Keep the variable but don't show the combobox
 
         # Info label
         info_label = ttk.Label(
             config_frame,
-            text="⚠️  Admin audit logs are essential for compliance and security investigations",
+            text="⚠️  Admin audit logs are essential for compliance. All event types will be retrieved - filter the exported CSV as needed.",
             font=('Arial', 9),
             foreground='#856404'
         )
@@ -979,16 +973,17 @@ class ReportsWindow(BaseOperationWindow):
 
         from modules.reports import get_admin_activity_report
 
-        # Confirmation
+        # Confirmation (event type filtering not supported, always retrieve all)
         confirm = messagebox.askyesno(
             "Generate Report",
-            f"Generate Admin Audit Report?\n\nPeriod: {start_date} to today\nEvent Type: {event_type}"
+            f"Generate Admin Audit Report?\n\nPeriod: {start_date} to today\n\nNote: All event types will be retrieved. Filter the exported CSV as needed."
         )
 
         if not confirm:
             return
 
         # Run report operation with result capture
+        # Always use "all" for event_type since GAM doesn't support category filtering
         self.run_report_operation(
             get_admin_activity_report,
             progress_frame,
@@ -996,7 +991,7 @@ class ReportsWindow(BaseOperationWindow):
             auto_export,
             'admin_audit',
             start_date,
-            event_type
+            'all'  # Always use 'all' - event type filtering not supported
         )
 
     def auto_export_report(self, report_data, report_type):
