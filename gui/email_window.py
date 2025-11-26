@@ -203,6 +203,19 @@ class EmailWindow(BaseOperationWindow):
         self.delegate_email_entry = ttk.Combobox(params_frame, width=40)
         self.delegate_email_entry.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
 
+        # Warning about 7-day Gmail notification banner
+        warning_frame = ttk.Frame(params_frame)
+        warning_frame.grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(10, 0))
+
+        warning_label = ttk.Label(
+            warning_frame,
+            text="⚠️  Gmail will display a notification banner to the user for 7 days stating that the delegate can read, send, and delete messages. This banner cannot be suppressed as it is a Google security feature.",
+            font=('Arial', 9),
+            foreground='#FF8C00',  # Dark orange
+            wraplength=500
+        )
+        warning_label.pack(fill=tk.X)
+
         params_frame.grid_columnconfigure(1, weight=1)
 
         # Execute button
@@ -212,7 +225,7 @@ class EmailWindow(BaseOperationWindow):
             command=lambda: self.execute_delegates(),
             width=20
         )
-        execute_btn.grid(row=2, column=0, columnspan=2, pady=(10, 0))
+        execute_btn.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
         # Progress and results
         self.delegates_progress_frame = self.create_progress_frame(tab)
@@ -245,14 +258,34 @@ class EmailWindow(BaseOperationWindow):
 
         action = self.delegate_action.get()
 
-        # Confirmation for multiple users
-        if len(users) > 1:
-            action_text = "add delegate to" if action == "add" else "remove delegate from"
-            if not messagebox.askyesno(
-                "Confirm Operation",
-                f"You are about to {action_text} {len(users)} users.\n\nProceed?"
-            ):
-                return
+        # Confirmation with delegate notification warning
+        if action == "add":
+            # Add warning about 7-day notification banner for add operation
+            if len(users) > 1:
+                confirm_msg = (
+                    f"You are about to add delegate '{delegate_email}' to {len(users)} users.\n\n"
+                    f"⚠️  IMPORTANT: Gmail will display a notification banner to each user for 7 days "
+                    f"stating that '{delegate_email}' can read, send, and delete messages on their behalf. "
+                    f"This banner cannot be suppressed.\n\n"
+                    f"Proceed?"
+                )
+            else:
+                confirm_msg = (
+                    f"You are about to add delegate '{delegate_email}' to {users[0]}.\n\n"
+                    f"⚠️  IMPORTANT: Gmail will display a notification banner to the user for 7 days "
+                    f"stating that '{delegate_email}' can read, send, and delete messages on their behalf. "
+                    f"This banner cannot be suppressed.\n\n"
+                    f"Proceed?"
+                )
+        else:
+            # Remove operation - simpler confirmation
+            if len(users) > 1:
+                confirm_msg = f"You are about to remove delegate from {len(users)} users.\n\nProceed?"
+            else:
+                confirm_msg = f"You are about to remove delegate from {users[0]}.\n\nProceed?"
+
+        if not messagebox.askyesno("Confirm Operation", confirm_msg):
+            return
 
         # Execute
         if action == "add":

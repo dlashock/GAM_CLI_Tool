@@ -102,17 +102,43 @@ def get_login_activity_report(date_range_days=30, include_suspended=False):
             if last_login_str and last_login_str not in ['Never logged in', 'Never', '']:
                 try:
                     # Try parsing with different formats GAM might return
-                    for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d']:
+                    # GAM typically returns ISO 8601 format with timezone and microseconds
+                    last_login = None
+                    days_since = None
+
+                    # Remove timezone info and microseconds for simpler parsing
+                    # Handle formats like: 2025-01-15T10:30:00.000Z or 2025-01-15T10:30:00-05:00
+                    date_to_parse = last_login_str
+
+                    # Remove 'Z' suffix if present
+                    if date_to_parse.endswith('Z'):
+                        date_to_parse = date_to_parse[:-1]
+
+                    # Remove timezone offset (e.g., -05:00, +00:00)
+                    if '+' in date_to_parse or (date_to_parse.count('-') > 2):
+                        # Split at last occurrence of + or - (timezone part)
+                        for sep in ['+', '-']:
+                            if sep in date_to_parse[10:]:  # Look after date part
+                                date_to_parse = date_to_parse.rsplit(sep, 1)[0]
+                                break
+
+                    # Remove microseconds if present (e.g., .000 or .123456)
+                    if '.' in date_to_parse:
+                        date_to_parse = date_to_parse.split('.')[0]
+
+                    # Now try parsing with simplified formats
+                    for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d']:
                         try:
-                            last_login = datetime.strptime(last_login_str, fmt)
+                            last_login = datetime.strptime(date_to_parse, fmt)
                             days_since = (datetime.now() - last_login).days
                             break
                         except ValueError:
                             continue
-                    else:
-                        # Couldn't parse any format
-                        last_login = None
-                        days_since = None
+
+                    if last_login is None:
+                        # Still couldn't parse - log for debugging
+                        log_error("Login Activity Report", f"Couldn't parse date format: {last_login_str}")
+
                 except Exception as e:
                     log_error("Login Activity Report", f"Error parsing date {last_login_str}: {e}")
                     last_login = None
@@ -450,9 +476,9 @@ def get_email_usage_report(start_date, end_date=None, scope='all', target=None):
     # Build GAM command based on scope
     if scope == 'user':
         # For a specific user, use user-level report
+        # Note: GAM syntax is "report usage user <email>" not "user <email> report usage"
         cmd = [
-            gam_cmd, 'user', target,
-            'report', 'usage',
+            gam_cmd, 'report', 'usage', 'user', target,
             'parameters', 'gmail:num_emails_sent,gmail:num_emails_received',
             'start', start_date
         ]
@@ -691,7 +717,8 @@ def get_admin_activity_report(start_date='-30d', event_type='all'):
     ]
 
     if event_type != 'all':
-        cmd.extend(['event', event_type])
+        # GAM expects event types in uppercase (e.g., USER_SETTINGS not user_settings)
+        cmd.extend(['event', event_type.upper()])
 
     try:
         result = subprocess.run(
@@ -725,15 +752,17 @@ def get_admin_activity_report(start_date='-30d', event_type='all'):
                 }
 
             # GAM admin report fields - try multiple possible field names
-            # Admin/Actor email
-            admin_email = (row.get('admin', '') or
+            # Admin/Actor email (GAM uses actor.email for admin audit)
+            admin_email = (row.get('actor.email', '') or
+                          row.get('admin', '') or
                           row.get('actor', '') or
                           row.get('actor_email', '') or
                           row.get('email', '') or
                           row.get('Admin', ''))
 
-            # Event name
-            event_name = (row.get('event', '') or
+            # Event name (GAM uses 'name' for the event in admin audit)
+            event_name = (row.get('name', '') or
+                         row.get('event', '') or
                          row.get('event_name', '') or
                          row.get('eventName', '') or
                          row.get('Event', ''))
@@ -744,14 +773,16 @@ def get_admin_activity_report(start_date='-30d', event_type='all'):
                              row.get('eventType', '') or
                              row.get('Type', ''))
 
-            # Timestamp
-            timestamp = (row.get('time', '') or
+            # Timestamp (GAM uses id.time for timestamps in admin audit)
+            timestamp = (row.get('id.time', '') or
+                        row.get('time', '') or
                         row.get('timestamp', '') or
                         row.get('date', '') or
                         row.get('Time', ''))
 
             # Extract all other fields as details (excluding the main ones)
-            excluded_keys = {'admin', 'actor', 'actor_email', 'email', 'Admin',
+            excluded_keys = {'actor.email', 'name', 'id.time',
+                           'admin', 'actor', 'actor_email', 'email', 'Admin',
                            'event', 'event_name', 'eventName', 'Event',
                            'type', 'event_type', 'eventType', 'Type',
                            'time', 'timestamp', 'date', 'Time'}
