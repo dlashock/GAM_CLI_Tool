@@ -11,6 +11,7 @@ import subprocess
 import re
 import os
 import sys
+import time
 
 
 # Cache for GAM executable path
@@ -119,9 +120,30 @@ def check_gam_version():
         return (False, f"Error checking GAM version: {str(e)}")
 
 
+def _parse_clock_skew(output):
+    """
+    Parse clock skew seconds from a 'Token used too early' GAM error.
+
+    The error looks like:
+        ERROR: Token used too early, 1773064624 < 1773064637.
+
+    Returns the number of seconds to wait (int), or None if not a clock skew error.
+    """
+    match = re.search(r'token used too early[^,]*,\s*(\d+)\s*<\s*(\d+)', output, re.IGNORECASE)
+    if match:
+        current_ts = int(match.group(1))
+        nbf_ts = int(match.group(2))
+        skew = nbf_ts - current_ts
+        return max(skew, 1)  # wait at least 1 second
+    return None
+
+
 def check_gam_auth():
     """
     Check if GAM is properly authenticated by running a simple domain info command.
+
+    Automatically retries once when a small clock skew error is detected
+    (e.g. "Token used too early") by waiting out the reported skew duration.
 
     Returns:
         tuple: (success: bool, error_message: str or None)
@@ -134,23 +156,49 @@ def check_gam_auth():
     if not gam_cmd:
         return (False, "GAM is not installed or not found in PATH.")
 
-    try:
-        # Run a simple GAM command that requires authentication
-        result = subprocess.run(
+    def _run_auth_check():
+        return subprocess.run(
             [gam_cmd, 'info', 'domain'],
             capture_output=True,
             text=True,
             timeout=30
         )
 
+    try:
+        result = _run_auth_check()
+
         # Check if command was successful
         if result.returncode != 0:
-            # Check for common authentication error messages
             output = result.stdout + result.stderr
+
+            # Detect clock skew ("Token used too early") and retry automatically
+            skew_seconds = _parse_clock_skew(output)
+            if skew_seconds is not None:
+                # Cap the wait to avoid hanging indefinitely (max 60 s)
+                wait = min(skew_seconds + 1, 60)
+                time.sleep(wait)
+                result = _run_auth_check()
+                if result.returncode == 0:
+                    return (True, None)
+                # Retry also failed — fall through to error reporting below
+                output = result.stdout + result.stderr
+                if _parse_clock_skew(output) is not None:
+                    return (
+                        False,
+                        f"GAM authentication check failed:\n"
+                        f"ERROR: Please correct your system time.\n\n"
+                        f"ERROR: Token used too early, clock skew of ~{skew_seconds}s detected.\n"
+                        f"Check that your computer's clock is set correctly.\n\n"
+                        f"If your clock is already synced, try running:\n"
+                        f"  sudo ntpdate -u pool.ntp.org  (Linux/Mac)\n"
+                        f"  w32tm /resync /force           (Windows)"
+                    )
+
+            # Check for common authentication error messages
             if 'oauth' in output.lower() or 'authentication' in output.lower() or 'credentials' in output.lower():
                 return (False, "GAM is not authenticated. Please run 'gam oauth create' or visit: https://github.com/GAM-team/GAM/wiki/Authorization")
-            else:
-                return (False, f"GAM authentication check failed: {output[:200]}")
+
+            return (False, f"GAM authentication check failed: {output[:200]}")
 
         # If we got here, the command succeeded
         return (True, None)
